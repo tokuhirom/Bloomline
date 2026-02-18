@@ -1,0 +1,1426 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bloomline</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #ffffff;
+    --text: #2d2d2d;
+    --muted: #aaa;
+    --accent: #4a9eff;
+    --hover-bg: #f4f6f9;
+    --border: #e0e0e0;
+    --bullet-size: 10px;
+    --indent: 28px;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 15px;
+    color: var(--text);
+    background: var(--bg);
+    min-height: 100vh;
+  }
+
+  /* ===== HEADER ===== */
+  #header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+    font-size: 14px;
+  }
+
+  .breadcrumb-item {
+    color: var(--accent);
+    cursor: pointer;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+  }
+  .breadcrumb-item:hover { text-decoration: underline; }
+  .breadcrumb-sep { color: var(--muted); }
+  .breadcrumb-current { color: var(--text); font-weight: 600; }
+
+  #search-box {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 13px;
+    outline: none;
+    width: 200px;
+    transition: border-color 0.15s;
+  }
+  #search-box:focus { border-color: var(--accent); }
+
+  #menu-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    color: var(--muted);
+    padding: 4px 8px;
+    border-radius: 4px;
+  }
+  #menu-btn:hover { background: var(--hover-bg); color: var(--text); }
+
+  #export-menu {
+    position: absolute;
+    right: 16px;
+    top: 48px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    z-index: 200;
+    min-width: 180px;
+    display: none;
+    overflow: hidden;
+  }
+  #export-menu.open { display: block; }
+  .menu-item {
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  .menu-item:hover { background: var(--hover-bg); }
+  .menu-item-desc {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 1px;
+  }
+  .menu-sep {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 0;
+  }
+
+  /* ===== MAIN CONTENT ===== */
+  #content {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 32px 24px 120px;
+  }
+
+  #page-title {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    color: var(--text);
+    outline: none;
+    min-height: 1em;
+    cursor: text;
+  }
+  #page-title:empty::before {
+    content: attr(data-placeholder);
+    color: var(--muted);
+  }
+
+  /* ===== NODE LIST ===== */
+  .node-list { list-style: none; }
+
+  .node-item {
+    position: relative;
+  }
+
+  .node-row {
+    display: flex;
+    align-items: flex-start;
+    padding: 2px 0;
+    border-radius: 4px;
+    min-height: 28px;
+  }
+  .node-row:hover { background: var(--hover-bg); }
+  .node-row.focused { background: var(--hover-bg); }
+  .node-row.selected { background: #dbeafe; }
+  .node-row.selected:hover { background: #bfdbfe; }
+
+  /* ドラッグ中はテキスト選択を抑制 */
+  body.node-drag-selecting,
+  body.node-drag-selecting * { user-select: none !important; cursor: default !important; }
+
+  /* collapse toggle */
+  .toggle-btn {
+    width: 20px;
+    min-width: 20px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 10px;
+    flex-shrink: 0;
+    user-select: none;
+    margin-top: 2px;
+  }
+  .toggle-btn:hover { color: var(--text); }
+  .toggle-btn.no-children { cursor: default; visibility: hidden; }
+
+  /* bullet */
+  .bullet {
+    width: 24px;
+    min-width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .bullet-dot {
+    width: var(--bullet-size);
+    height: var(--bullet-size);
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.15s, transform 0.15s;
+  }
+  .bullet:hover .bullet-dot { background: var(--accent); transform: scale(1.15); }
+  .bullet-dot.has-children-collapsed {
+    background: var(--text);
+  }
+
+  /* editable text area */
+  .node-text-wrap {
+    flex: 1;
+    min-width: 0;
+    padding: 2px 4px;
+  }
+
+  .node-text {
+    display: block;
+    outline: none;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.6;
+    caret-color: var(--text);
+  }
+  .node-text:empty::before {
+    content: attr(data-placeholder);
+    color: var(--muted);
+    pointer-events: none;
+  }
+
+  .node-note {
+    display: block;
+    outline: none;
+    font-size: 13px;
+    color: var(--muted);
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.5;
+    margin-top: 2px;
+    caret-color: var(--muted);
+  }
+  .node-note:empty::before {
+    content: "メモを追加...";
+    color: #ccc;
+    pointer-events: none;
+  }
+  .node-note.hidden { display: none; }
+
+  /* children indent */
+  .node-children {
+    padding-left: var(--indent);
+  }
+  .node-children.collapsed { display: none; }
+
+  /* ===== CHECKBOX / TODO ===== */
+  .node-main-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .node-checkbox {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #bbb;
+    border-radius: 3px;
+    margin-top: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.15s, background 0.15s;
+    user-select: none;
+  }
+  .node-checkbox:hover { border-color: var(--accent); }
+  .node-checkbox.checked {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .node-checkbox.checked::after {
+    content: '✓';
+    color: #fff;
+    font-size: 11px;
+    line-height: 1;
+    font-weight: bold;
+  }
+
+  .node-text.is-checked {
+    text-decoration: line-through;
+    color: var(--muted);
+  }
+
+  /* ===== IMAGE PREVIEW ===== */
+  .node-image-container {
+    margin-top: 4px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .node-image-preview {
+    display: block;
+    max-width: 480px;
+    max-height: 320px;
+    width: auto;
+    height: auto;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    object-fit: contain;
+  }
+  .node-image-preview:hover { opacity: 0.85; }
+
+  /* search highlight */
+  mark {
+    background: #fff176;
+    border-radius: 2px;
+  }
+
+  /* node hidden by search */
+  .node-item.search-hidden { display: none; }
+
+  /* ===== FILE INFO ===== */
+  #file-info {
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 220px;
+    flex-shrink: 0;
+    transition: color 0.3s;
+  }
+  #file-info.saving { color: #f59e0b; }
+  #file-info.saved  { color: #4caf50; }
+  .menu-item.disabled { color: var(--muted); cursor: default; pointer-events: none; }
+
+  /* ===== TOAST ===== */
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: #333;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: transform 0.3s;
+    z-index: 9999;
+    pointer-events: none;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div id="breadcrumb"></div>
+  <span id="file-info"></span>
+  <input id="search-box" type="search" placeholder="検索..." autocomplete="off">
+  <button id="menu-btn" title="メニュー">⋯</button>
+  <div id="export-menu">
+    <div class="menu-item" data-action="open-file">
+      ファイルを開く
+      <div class="menu-item-desc">既存の .json を開いて編集。変更は自動的にファイルへ保存されます</div>
+    </div>
+    <div class="menu-item" data-action="save-file-as">
+      ファイルに保存
+      <div class="menu-item-desc">保存先ファイルを選択。以後、変更のたびに自動保存されます</div>
+    </div>
+    <div class="menu-sep"></div>
+    <div class="menu-item" data-action="export-text">テキストでエクスポート</div>
+    <div class="menu-item" data-action="export-json">JSONでエクスポート</div>
+    <div class="menu-item" data-action="export-opml">OPMLでエクスポート</div>
+    <div class="menu-sep"></div>
+    <div class="menu-item" data-action="import-json">JSONからインポート（旧）</div>
+  </div>
+</div>
+
+<div id="content">
+  <div id="page-title" contenteditable="true" data-placeholder="タイトル"></div>
+  <ul id="node-root" class="node-list"></ul>
+</div>
+
+<div id="toast"></div>
+<input id="file-import" type="file" accept=".json" style="display:none">
+
+<script>
+// ============================================================
+// データモデル
+// ============================================================
+const STORAGE_KEY = 'bloomline-data';
+
+function uuid() {
+  return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+    (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
+}
+
+function createNode(text = '', checked = undefined) {
+  return { id: uuid(), text, note: '', children: [], collapsed: false, checked };
+}
+
+function defaultState() {
+  const root = createNode('');
+  root.children.push(createNode(''));
+  return { root, currentPath: [], title: 'Bloomline', version: 1 };
+}
+
+let state = loadState();
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const s = JSON.parse(raw);
+      if (s && s.root) return migrateState(s);
+    }
+  } catch(e) {}
+  return defaultState();
+}
+
+function migrateState(s) {
+  // ensure fields exist
+  if (!s.currentPath) s.currentPath = [];
+  if (!s.title) s.title = 'Bloomline';
+  if (!s.version) s.version = 1;
+  ensureNodeFields(s.root);
+  return s;
+}
+
+function ensureNodeFields(node) {
+  if (!node.id) node.id = uuid();
+  if (!node.text) node.text = '';
+  if (!node.note) node.note = '';
+  if (!node.children) node.children = [];
+  if (node.collapsed === undefined) node.collapsed = false;
+  // checked: undefined = not a todo, false = unchecked, true = checked
+  node.children.forEach(ensureNodeFields);
+}
+
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch(e) {}
+  writeToFile();
+}
+
+// ============================================================
+// File System Access API
+// ============================================================
+const hasFileSystemAccess = 'showOpenFilePicker' in window;
+let fileHandle = null;
+
+let savedStatusTimer = null;
+
+function updateFileInfo(status = 'saved') {
+  const el = document.getElementById('file-info');
+  if (!fileHandle) {
+    el.textContent = '';
+    el.className = '';
+    return;
+  }
+  if (status === 'saving') {
+    el.textContent = '⟳ ' + fileHandle.name + ' に保存中...';
+    el.className = 'saving';
+  } else {
+    el.textContent = '✓ ' + fileHandle.name + ' に自動保存中';
+    el.className = 'saved';
+  }
+}
+
+let writeTimer = null;
+function writeToFile() {
+  if (!fileHandle) return;
+  updateFileInfo('saving');
+  clearTimeout(writeTimer);
+  writeTimer = setTimeout(async () => {
+    try {
+      const writable = await fileHandle.createWritable();
+      await writable.write(JSON.stringify(state, null, 2));
+      await writable.close();
+      updateFileInfo('saved');
+    } catch (e) {
+      if (e.name === 'NotAllowedError') {
+        showToast('ファイルへの書き込み権限がありません');
+        fileHandle = null;
+        updateFileInfo();
+      }
+    }
+  }, 600);
+}
+
+async function openFile() {
+  if (!hasFileSystemAccess) {
+    showToast('このブラウザはFile System Access APIに対応していません（Chrome/Edgeをお使いください）');
+    return;
+  }
+  try {
+    const [handle] = await window.showOpenFilePicker({
+      types: [{ description: 'Bloomline JSON', accept: { 'application/json': ['.json'] } }],
+      multiple: false
+    });
+    const file = await handle.getFile();
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    if (!parsed.root) throw new Error('Bloomlineのファイルではありません');
+    fileHandle = handle;
+    state = migrateState(parsed);
+    saveState();
+    render();
+    updateFileInfo();
+    showToast(handle.name + ' を開きました');
+  } catch (e) {
+    if (e.name !== 'AbortError') showToast('開けませんでした: ' + e.message);
+  }
+}
+
+async function saveFileAs() {
+  if (!hasFileSystemAccess) {
+    showToast('このブラウザはFile System Access APIに対応していません（Chrome/Edgeをお使いください）');
+    return;
+  }
+  try {
+    const handle = await window.showSaveFilePicker({
+      suggestedName: (state.title || 'bloomline') + '.json',
+      types: [{ description: 'Bloomline JSON', accept: { 'application/json': ['.json'] } }]
+    });
+    fileHandle = handle;
+    const writable = await handle.createWritable();
+    await writable.write(JSON.stringify(state, null, 2));
+    await writable.close();
+    updateFileInfo();
+    showToast(handle.name + ' に保存しました');
+  } catch (e) {
+    if (e.name !== 'AbortError') showToast('保存に失敗しました: ' + e.message);
+  }
+}
+
+// ============================================================
+// ノード操作ヘルパー
+// ============================================================
+
+// currentPath に対応するノードを返す
+function getCurrentRoot() {
+  let node = state.root;
+  for (const id of state.currentPath) {
+    const child = node.children.find(c => c.id === id);
+    if (!child) { state.currentPath = []; return state.root; }
+    node = child;
+  }
+  return node;
+}
+
+// id でノードを探して返す（parent も返す）
+function findNode(id, node = state.root, parent = null, index = 0) {
+  if (node.id === id) return { node, parent, index };
+  for (let i = 0; i < node.children.length; i++) {
+    const res = findNode(id, node.children[i], node, i);
+    if (res) return res;
+  }
+  return null;
+}
+
+// フラットなリスト（表示順）を返す（collapse考慮）
+function flatVisibleNodes(root) {
+  const list = [];
+  function walk(node) {
+    list.push(node);
+    if (!node.collapsed) {
+      node.children.forEach(walk);
+    }
+  }
+  root.children.forEach(walk);
+  return list;
+}
+
+// ============================================================
+// レンダリング
+// ============================================================
+
+let lastFocusId = null;
+let lastFocusOffset = null;
+let searchQuery = '';
+
+// ============================================================
+// 範囲選択
+// ============================================================
+let selAnchorId = null;   // 選択開始ノード
+let selFocusId  = null;   // 選択終了ノード（Shift操作で動く）
+let suppressSelectionClear = false;  // Shift+Arrow後のfocusイベントで選択を消さない
+let isDragging = false;   // マウスドラッグ中フラグ
+let dragAnchorId = null;  // ドラッグ開始ノード
+
+function getSelectionRange() {
+  if (!selAnchorId) return [];
+  const flat = flatVisibleNodes(getCurrentRoot());
+  const ai = flat.findIndex(n => n.id === selAnchorId);
+  const fi = selFocusId ? flat.findIndex(n => n.id === selFocusId) : ai;
+  if (ai < 0) return [];
+  const start = Math.min(ai, fi < 0 ? ai : fi);
+  const end   = Math.max(ai, fi < 0 ? ai : fi);
+  return flat.slice(start, end + 1);
+}
+
+function updateSelectionDisplay() {
+  const ids = new Set(getSelectionRange().map(n => n.id));
+  document.querySelectorAll('.node-row').forEach(row => {
+    const li = row.closest('.node-item');
+    row.classList.toggle('selected', li ? ids.has(li.dataset.id) : false);
+  });
+}
+
+function clearSelection() {
+  selAnchorId = null;
+  selFocusId  = null;
+  document.querySelectorAll('.node-row.selected').forEach(r => r.classList.remove('selected'));
+}
+
+function render() {
+  const currentRoot = getCurrentRoot();
+  renderBreadcrumb(currentRoot);
+  renderNodes(currentRoot);
+  saveState();
+}
+
+function renderBreadcrumb(currentRoot) {
+  const bc = document.getElementById('breadcrumb');
+  bc.innerHTML = '';
+
+  const homeSpan = document.createElement('span');
+  homeSpan.className = 'breadcrumb-item';
+  homeSpan.textContent = state.title || 'Bloomline';
+  homeSpan.addEventListener('click', () => { state.currentPath = []; render(); });
+  bc.appendChild(homeSpan);
+
+  let node = state.root;
+  for (let i = 0; i < state.currentPath.length; i++) {
+    const sep = document.createElement('span');
+    sep.className = 'breadcrumb-sep';
+    sep.textContent = ' › ';
+    bc.appendChild(sep);
+
+    const id = state.currentPath[i];
+    const child = node.children.find(c => c.id === id);
+    if (!child) break;
+    node = child;
+
+    const isLast = (i === state.currentPath.length - 1);
+    const span = document.createElement('span');
+    span.className = isLast ? 'breadcrumb-current' : 'breadcrumb-item';
+    span.textContent = child.text || '(無題)';
+    if (!isLast) {
+      const pathSoFar = state.currentPath.slice(0, i + 1);
+      span.addEventListener('click', () => { state.currentPath = pathSoFar; render(); });
+    }
+    bc.appendChild(span);
+  }
+
+  // update page title display
+  const titleEl = document.getElementById('page-title');
+  if (state.currentPath.length === 0) {
+    // フォーカス中は textContent を上書きしない（カーソルがリセットされるため）
+    if (document.activeElement !== titleEl) {
+      titleEl.textContent = state.title || '';
+    }
+    titleEl.dataset.placeholder = 'タイトル';
+    titleEl.style.display = '';
+  } else {
+    titleEl.style.display = 'none';
+  }
+}
+
+function renderNodes(currentRoot) {
+  const container = document.getElementById('node-root');
+  container.innerHTML = '';
+  currentRoot.children.forEach(child => {
+    container.appendChild(createNodeEl(child, 0));
+  });
+  applySearch();
+
+  // restore focus
+  if (lastFocusId) {
+    const el = document.querySelector(`[data-id="${lastFocusId}"] .node-text`);
+    if (el) {
+      el.focus();
+      if (lastFocusOffset !== null) {
+        setCursorPos(el, lastFocusOffset);
+      }
+    }
+    lastFocusId = null;
+    lastFocusOffset = null;
+  }
+  // 選択表示を再適用
+  if (selAnchorId) updateSelectionDisplay();
+}
+
+function createNodeEl(node, depth) {
+  const li = document.createElement('li');
+  li.className = 'node-item';
+  li.dataset.id = node.id;
+
+  // row
+  const row = document.createElement('div');
+  row.className = 'node-row';
+
+  // toggle button
+  const toggle = document.createElement('span');
+  toggle.className = 'toggle-btn' + (node.children.length === 0 ? ' no-children' : '');
+  toggle.textContent = node.collapsed ? '▶' : '▼';
+  toggle.title = node.collapsed ? '展開' : '折りたたむ';
+  if (node.children.length > 0) {
+    toggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      node.collapsed = !node.collapsed;
+      render();
+    });
+  }
+  row.appendChild(toggle);
+
+  // bullet
+  const bullet = document.createElement('span');
+  bullet.className = 'bullet';
+  bullet.title = 'クリックでズームイン';
+  const dot = document.createElement('span');
+  dot.className = 'bullet-dot' + (node.collapsed && node.children.length > 0 ? ' has-children-collapsed' : '');
+  bullet.appendChild(dot);
+  bullet.addEventListener('click', (e) => {
+    e.stopPropagation();
+    state.currentPath.push(node.id);
+    render();
+  });
+  row.appendChild(bullet);
+
+  // text area wrap
+  const textWrap = document.createElement('div');
+  textWrap.className = 'node-text-wrap';
+
+  // main row (checkbox + text)
+  const mainRow = document.createElement('div');
+  mainRow.className = 'node-main-row';
+
+  // checkbox (todo mode)
+  if (node.checked !== undefined) {
+    const cb = document.createElement('span');
+    cb.className = 'node-checkbox' + (node.checked ? ' checked' : '');
+    cb.title = node.checked ? 'チェックを外す' : '完了にする';
+    cb.addEventListener('click', (e) => {
+      e.stopPropagation();
+      node.checked = !node.checked;
+      lastFocusId = node.id;
+      render();
+    });
+    mainRow.appendChild(cb);
+  }
+
+  const textEl = document.createElement('span');
+  textEl.className = 'node-text' + (node.checked ? ' is-checked' : '');
+  textEl.contentEditable = 'true';
+  textEl.dataset.placeholder = node.checked !== undefined ? 'TODOを入力...' : '入力してください...';
+  textEl.dataset.nodeId = node.id;
+  textEl.textContent = node.text;
+  textEl.spellcheck = false;
+
+  const noteEl = document.createElement('span');
+  noteEl.className = 'node-note' + (node.note ? '' : ' hidden');
+  noteEl.contentEditable = 'true';
+  noteEl.dataset.nodeId = node.id;
+  noteEl.textContent = node.note;
+  noteEl.spellcheck = false;
+
+  textEl.addEventListener('input', () => {
+    const raw = textEl.textContent;
+    // [] または [ ] + スペース で TODO に変換
+    if (/^\[\s?\] /.test(raw)) {
+      node.checked = false;
+      node.text = raw.replace(/^\[\s?\] /, '');
+      lastFocusId = node.id;
+      lastFocusOffset = 0;
+      render();
+      return;
+    }
+    node.text = raw;
+    updateToggleBtn(li, node);
+    refreshImagePreview(imgContainer, raw);
+    saveState();
+  });
+
+  noteEl.addEventListener('input', () => {
+    node.note = noteEl.textContent;
+    saveState();
+  });
+
+  textEl.addEventListener('keydown', (e) => handleKeyDown(e, node, textEl, noteEl));
+  noteEl.addEventListener('keydown', (e) => handleNoteKeyDown(e, node, textEl, noteEl));
+
+  textEl.addEventListener('focus', () => {
+    row.classList.add('focused');
+    if (!suppressSelectionClear) clearSelection();
+    suppressSelectionClear = false;
+  });
+  textEl.addEventListener('blur', () => row.classList.remove('focused'));
+
+  // 範囲選択（Shift+クリック & ドラッグ）
+  row.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    if (e.shiftKey) {
+      e.preventDefault();
+      if (!selAnchorId) selAnchorId = node.id;
+      selFocusId = node.id;
+      suppressSelectionClear = true;
+      updateSelectionDisplay();
+      textEl.focus();
+    } else {
+      // ドラッグ選択の起点を記録（まだ選択モードには入らない）
+      dragAnchorId = node.id;
+      isDragging = true;
+    }
+  });
+
+  row.addEventListener('mouseover', () => {
+    if (!isDragging || !dragAnchorId || node.id === dragAnchorId) return;
+    // 別の行に入った瞬間にノード選択モード開始
+    if (!selAnchorId) {
+      selAnchorId = dragAnchorId;
+      document.body.classList.add('node-drag-selecting');
+      window.getSelection()?.removeAllRanges();
+    }
+    selFocusId = node.id;
+    updateSelectionDisplay();
+  });
+
+  const imgContainer = document.createElement('div');
+  imgContainer.className = 'node-image-container';
+  refreshImagePreview(imgContainer, node.text);
+
+  mainRow.appendChild(textEl);
+  textWrap.appendChild(mainRow);
+  textWrap.appendChild(noteEl);
+  textWrap.appendChild(imgContainer);
+  row.appendChild(textWrap);
+  li.appendChild(row);
+
+  // children
+  if (node.children.length > 0) {
+    const childList = document.createElement('ul');
+    childList.className = 'node-children node-list' + (node.collapsed ? ' collapsed' : '');
+    node.children.forEach(child => {
+      childList.appendChild(createNodeEl(child, depth + 1));
+    });
+    li.appendChild(childList);
+  }
+
+  return li;
+}
+
+// ============================================================
+// 画像プレビュー
+// ============================================================
+
+function extractImageUrls(text) {
+  const re = /https?:\/\/\S+\.(?:jpg|jpeg|png|gif|webp|svg|bmp|avif)(\?\S*)?/gi;
+  return [...text.matchAll(re)].map(m => m[0]);
+}
+
+function refreshImagePreview(container, text) {
+  container.innerHTML = '';
+  const urls = extractImageUrls(text);
+  urls.forEach(url => {
+    const img = document.createElement('img');
+    img.className = 'node-image-preview';
+    img.src = url;
+    img.alt = '';
+    img.loading = 'lazy';
+    img.addEventListener('click', () => window.open(url, '_blank'));
+    img.addEventListener('error', () => img.remove());
+    container.appendChild(img);
+  });
+}
+
+function updateToggleBtn(li, node) {
+  const toggle = li.querySelector('.toggle-btn');
+  if (!toggle) return;
+  if (node.children.length === 0) {
+    toggle.classList.add('no-children');
+  } else {
+    toggle.classList.remove('no-children');
+    toggle.textContent = node.collapsed ? '▶' : '▼';
+  }
+}
+
+// ============================================================
+// カーソル位置ユーティリティ
+// ============================================================
+
+function getCursorPos(el) {
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return 0;
+  const range = sel.getRangeAt(0);
+  const pre = range.cloneRange();
+  pre.selectNodeContents(el);
+  pre.setEnd(range.startContainer, range.startOffset);
+  return pre.toString().length;
+}
+
+function setCursorPos(el, pos) {
+  const range = document.createRange();
+  const sel = window.getSelection();
+  let charCount = 0;
+  let found = false;
+
+  function walk(node) {
+    if (found) return;
+    if (node.nodeType === Node.TEXT_NODE) {
+      const len = node.textContent.length;
+      if (charCount + len >= pos) {
+        range.setStart(node, pos - charCount);
+        range.collapse(true);
+        found = true;
+      } else {
+        charCount += len;
+      }
+    } else {
+      for (const child of node.childNodes) walk(child);
+    }
+  }
+
+  walk(el);
+  if (!found) {
+    // put cursor at end
+    range.selectNodeContents(el);
+    range.collapse(false);
+  }
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+function isAtStart(el) { return getCursorPos(el) === 0; }
+function isAtEnd(el) { return getCursorPos(el) === el.textContent.length; }
+
+// ============================================================
+// キー操作
+// ============================================================
+
+function handleKeyDown(e, node, textEl, noteEl) {
+  const currentRoot = getCurrentRoot();
+
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+    e.preventDefault();
+    const pos = getCursorPos(textEl);
+    const text = node.text;
+    const before = text.slice(0, pos);
+    const after = text.slice(pos);
+
+    node.text = before;
+    textEl.textContent = before;
+
+    // TODOノードからEnterした場合、新ノードも未チェックTODOにする
+    const newNode = createNode(after, node.checked !== undefined ? false : undefined);
+
+    const { node: found, parent, index } = findNode(node.id, currentRoot) || {};
+    if (!parent) return;
+
+    // 子ノードがある場合、新ノードを最初の子に
+    if (node.children.length > 0 && !node.collapsed) {
+      node.children.unshift(newNode);
+    } else {
+      parent.children.splice(index + 1, 0, newNode);
+    }
+
+    lastFocusId = newNode.id;
+    lastFocusOffset = 0;
+    render();
+
+  } else if (e.key === 'Tab' && !e.shiftKey) {
+    e.preventDefault();
+    const sel = getSelectionRange();
+    if (sel.length > 1) {
+      // 下から上へ処理（インデックスずれを防ぐ）
+      for (let i = sel.length - 1; i >= 0; i--) indentNode(sel[i], currentRoot, true);
+      clearSelection();
+      render();
+    } else {
+      indentNode(node, currentRoot);
+    }
+
+  } else if (e.key === 'Tab' && e.shiftKey) {
+    e.preventDefault();
+    const sel = getSelectionRange();
+    if (sel.length > 1) {
+      // 上から下へ処理
+      sel.forEach(n => outdentNode(n, currentRoot, true));
+      clearSelection();
+      render();
+    } else {
+      outdentNode(node, currentRoot);
+    }
+
+  } else if (e.key === 'Backspace') {
+    const sel = getSelectionRange();
+    if (sel.length > 1) {
+      e.preventDefault();
+      // 下から上へ削除
+      const lastFocus = flatVisibleNodes(currentRoot).find(
+        n => !sel.find(s => s.id === n.id) &&
+             flatVisibleNodes(currentRoot).indexOf(n) <
+             flatVisibleNodes(currentRoot).indexOf(sel[0])
+      ) || flatVisibleNodes(currentRoot).find(n => !sel.find(s => s.id === n.id));
+      for (let i = sel.length - 1; i >= 0; i--) {
+        const res = findNode(sel[i].id, currentRoot);
+        if (res && !(res.parent === currentRoot && res.parent.children.length === 1)) {
+          res.parent.children.splice(res.index, 1);
+        }
+      }
+      clearSelection();
+      if (lastFocus) { lastFocusId = lastFocus.id; lastFocusOffset = lastFocus.text.length; }
+      render();
+    } else if (isAtStart(textEl)) {
+      if (node.checked !== undefined && node.text === '') {
+        e.preventDefault();
+        node.checked = undefined;
+        lastFocusId = node.id;
+        lastFocusOffset = 0;
+        render();
+      } else if (node.text === '' && node.children.length === 0) {
+        e.preventDefault();
+        removeNode(node, currentRoot);
+      } else if (isAtStart(textEl)) {
+        e.preventDefault();
+        mergeWithPrev(node, textEl, currentRoot);
+      }
+    }
+
+  } else if (e.key === 'ArrowUp' && e.shiftKey) {
+    e.preventDefault();
+    const flat = flatVisibleNodes(currentRoot);
+    if (!selAnchorId) selAnchorId = node.id;
+    const focusId = selFocusId || node.id;
+    const idx = flat.findIndex(n => n.id === focusId);
+    if (idx > 0) selFocusId = flat[idx - 1].id;
+    suppressSelectionClear = true;
+    updateSelectionDisplay();
+
+  } else if (e.key === 'ArrowDown' && e.shiftKey) {
+    e.preventDefault();
+    const flat = flatVisibleNodes(currentRoot);
+    if (!selAnchorId) selAnchorId = node.id;
+    const focusId = selFocusId || node.id;
+    const idx = flat.findIndex(n => n.id === focusId);
+    if (idx < flat.length - 1) selFocusId = flat[idx + 1].id;
+    suppressSelectionClear = true;
+    updateSelectionDisplay();
+
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    clearSelection();
+    moveFocusPrev(node, currentRoot);
+
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    clearSelection();
+    moveFocusNext(node, currentRoot);
+
+  } else if (e.key === 'Escape') {
+    if (selAnchorId) { clearSelection(); }
+
+  }
+}
+
+function handleNoteKeyDown(e, node, textEl, noteEl) {
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    textEl.focus();
+  }
+}
+
+function indentNode(node, currentRoot, skipRender = false) {
+  const res = findNode(node.id, currentRoot);
+  if (!res) return;
+  const { parent, index } = res;
+  if (index === 0) return;
+
+  const prevSibling = parent.children[index - 1];
+  parent.children.splice(index, 1);
+  if (prevSibling.collapsed) prevSibling.collapsed = false;
+  prevSibling.children.push(node);
+
+  lastFocusId = node.id;
+  if (!skipRender) render();
+}
+
+function outdentNode(node, currentRoot, skipRender = false) {
+  const res = findNode(node.id, currentRoot);
+  if (!res) return;
+  const { parent, index } = res;
+
+  const parentRes = parent === currentRoot ? null : findNode(parent.id, currentRoot);
+  if (!parentRes && parent !== currentRoot) return;
+
+  const grandParent = parentRes ? parentRes.parent : null;
+  const parentIndex = parentRes ? parentRes.index : null;
+
+  if (!grandParent) return;
+
+  parent.children.splice(index, 1);
+
+  const afterSiblings = parent.children.splice(index);
+  node.children.push(...afterSiblings);
+
+  grandParent.children.splice(parentIndex + 1, 0, node);
+
+  lastFocusId = node.id;
+  if (!skipRender) render();
+}
+
+function removeNode(node, currentRoot) {
+  const res = findNode(node.id, currentRoot);
+  if (!res) return;
+  const { parent, index } = res;
+
+  // root の最後の子は削除しない
+  if (parent === currentRoot && parent.children.length === 1) return;
+
+  // フォーカス先を削除前に確定する
+  const flat = flatVisibleNodes(currentRoot);
+  const nodeIndex = flat.findIndex(n => n.id === node.id);
+  const prevNode = flat[nodeIndex - 1] || flat[nodeIndex + 1];
+
+  parent.children.splice(index, 1);
+  if (prevNode) {
+    lastFocusId = prevNode.id;
+    lastFocusOffset = prevNode.text.length;
+  }
+  render();
+}
+
+function mergeWithPrev(node, textEl, currentRoot) {
+  const flat = flatVisibleNodes(currentRoot);
+  const idx = flat.findIndex(n => n.id === node.id);
+  if (idx <= 0) return;
+
+  const prevNode = flat[idx - 1];
+  const prevLen = prevNode.text.length;
+  const mergedText = prevNode.text + node.text;
+  prevNode.text = mergedText;
+
+  // node の子を prevNode の子にappend
+  node.children.forEach(c => prevNode.children.push(c));
+
+  // node を削除
+  const res = findNode(node.id, currentRoot);
+  if (res) {
+    res.parent.children.splice(res.index, 1);
+  }
+
+  lastFocusId = prevNode.id;
+  lastFocusOffset = prevLen;
+  render();
+}
+
+function moveFocusPrev(node, currentRoot) {
+  const flat = flatVisibleNodes(currentRoot);
+  const idx = flat.findIndex(n => n.id === node.id);
+  if (idx <= 0) return;
+  const prevNode = flat[idx - 1];
+  const el = document.querySelector(`[data-id="${prevNode.id}"] .node-text`);
+  if (el) { el.focus(); setCursorPos(el, el.textContent.length); }
+}
+
+function moveFocusNext(node, currentRoot) {
+  const flat = flatVisibleNodes(currentRoot);
+  const idx = flat.findIndex(n => n.id === node.id);
+  if (idx < 0 || idx >= flat.length - 1) return;
+  const nextNode = flat[idx + 1];
+  const el = document.querySelector(`[data-id="${nextNode.id}"] .node-text`);
+  if (el) { el.focus(); setCursorPos(el, 0); }
+}
+
+// ============================================================
+// 検索
+// ============================================================
+
+function applySearch() {
+  const q = searchQuery.trim().toLowerCase();
+  if (!q) {
+    document.querySelectorAll('.node-item').forEach(el => el.classList.remove('search-hidden'));
+    document.querySelectorAll('.node-text, .node-note').forEach(el => {
+      el.innerHTML = '';
+      const nodeId = el.dataset.nodeId;
+      const node = nodeId ? findNode(nodeId)?.node : null;
+      if (node) {
+        el.textContent = el.classList.contains('node-text') ? node.text : node.note;
+      }
+    });
+    return;
+  }
+
+  // collect visible node ids that match or have matching descendant
+  const currentRoot = getCurrentRoot();
+  const matchIds = new Set();
+
+  function collectMatch(node) {
+    const textMatch = node.text.toLowerCase().includes(q);
+    const noteMatch = node.note.toLowerCase().includes(q);
+    let childMatch = false;
+    node.children.forEach(child => {
+      if (collectMatch(child)) childMatch = true;
+    });
+    if (textMatch || noteMatch || childMatch) {
+      matchIds.add(node.id);
+      return true;
+    }
+    return false;
+  }
+  currentRoot.children.forEach(collectMatch);
+
+  document.querySelectorAll('.node-item').forEach(li => {
+    const id = li.dataset.id;
+    if (!matchIds.has(id)) {
+      li.classList.add('search-hidden');
+    } else {
+      li.classList.remove('search-hidden');
+    }
+  });
+
+  // highlight text
+  document.querySelectorAll('.node-text, .node-note').forEach(el => {
+    const nodeId = el.dataset.nodeId;
+    const node = nodeId ? findNode(nodeId)?.node : null;
+    if (!node) return;
+    const raw = el.classList.contains('node-text') ? node.text : node.note;
+    el.innerHTML = highlightText(raw, q);
+  });
+}
+
+function highlightText(text, query) {
+  if (!query) return escapeHtml(text);
+  const parts = text.split(new RegExp(`(${escapeRegex(query)})`, 'gi'));
+  return parts.map(p => p.toLowerCase() === query ? `<mark>${escapeHtml(p)}</mark>` : escapeHtml(p)).join('');
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// ============================================================
+// エクスポート
+// ============================================================
+
+function exportText() {
+  const lines = [];
+  function walk(node, depth) {
+    if (node === state.root) {
+      lines.push(state.title || 'Bloomline');
+    } else {
+      const prefix = node.checked !== undefined
+        ? (node.checked ? '[x] ' : '[ ] ')
+        : '';
+      lines.push('  '.repeat(depth) + '- ' + prefix + node.text);
+      if (node.note) lines.push('  '.repeat(depth + 1) + node.note);
+    }
+    node.children.forEach(c => walk(c, depth + (node === state.root ? 0 : 1)));
+  }
+  walk(state.root, 0);
+  download('bloomline-export.txt', lines.join('\n'), 'text/plain');
+}
+
+function exportJson() {
+  download('bloomline-export.json', JSON.stringify(state, null, 2), 'application/json');
+}
+
+function exportOpml() {
+  function nodeToOpml(node, indent) {
+    const pad = '  '.repeat(indent);
+    const text = escapeXml(node.text || '');
+    const note = node.note ? ` _note="${escapeXml(node.note)}"` : '';
+    if (node.children.length === 0) {
+      return `${pad}<outline text="${text}"${note}/>`;
+    }
+    const children = node.children.map(c => nodeToOpml(c, indent + 1)).join('\n');
+    return `${pad}<outline text="${text}"${note}>\n${children}\n${pad}</outline>`;
+  }
+
+  const body = state.root.children.map(c => nodeToOpml(c, 2)).join('\n');
+  const opml = `<?xml version="1.0" encoding="utf-8"?>
+<opml version="2.0">
+  <head>
+    <title>${escapeXml(state.title || 'Bloomline')}</title>
+  </head>
+  <body>
+${body}
+  </body>
+</opml>`;
+  download('bloomline-export.opml', opml, 'text/xml');
+}
+
+function escapeXml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+}
+
+function download(filename, content, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type }));
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+function importJson(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      if (!parsed.root) throw new Error('Invalid format');
+      state = migrateState(parsed);
+      saveState();
+      render();
+      showToast('インポート完了！');
+    } catch (err) {
+      showToast('インポートに失敗しました: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ============================================================
+// Toast
+// ============================================================
+let toastTimer;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ============================================================
+// イベントリスナー
+// ============================================================
+
+// メニュー
+document.getElementById('menu-btn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  document.getElementById('export-menu').classList.toggle('open');
+});
+
+document.addEventListener('click', () => {
+  document.getElementById('export-menu').classList.remove('open');
+});
+
+document.addEventListener('mouseup', () => {
+  isDragging = false;
+  dragAnchorId = null;
+  document.body.classList.remove('node-drag-selecting');
+});
+
+document.getElementById('export-menu').addEventListener('click', (e) => {
+  const action = e.target.dataset.action;
+  if (!action) return;
+  document.getElementById('export-menu').classList.remove('open');
+
+  if (action === 'open-file') openFile();
+  else if (action === 'save-file-as') saveFileAs();
+  else if (action === 'export-text') exportText();
+  else if (action === 'export-json') exportJson();
+  else if (action === 'export-opml') exportOpml();
+  else if (action === 'import-json') document.getElementById('file-import').click();
+});
+
+document.getElementById('file-import').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (file) importJson(file);
+  e.target.value = '';
+});
+
+// 検索
+document.getElementById('search-box').addEventListener('input', (e) => {
+  searchQuery = e.target.value;
+  applySearch();
+});
+
+// ページタイトル編集
+const titleEl = document.getElementById('page-title');
+titleEl.addEventListener('input', () => {
+  state.title = titleEl.textContent;
+  saveState();
+  // update breadcrumb
+  renderBreadcrumb(getCurrentRoot());
+});
+titleEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.isComposing) {
+    e.preventDefault();
+    // focus first node
+    const firstText = document.querySelector('.node-text');
+    if (firstText) firstText.focus();
+  }
+});
+
+// キーボードショートカット
+document.addEventListener('keydown', (e) => {
+  // Escape でズームアウト
+  if (e.key === 'Escape' && state.currentPath.length > 0) {
+    state.currentPath.pop();
+    render();
+  }
+});
+
+// ============================================================
+// 初期化
+// ============================================================
+
+// File System Access API 非対応ブラウザでメニュー項目をグレーアウト
+if (!hasFileSystemAccess) {
+  document.querySelectorAll('[data-action="open-file"], [data-action="save-file-as"]').forEach(el => {
+    el.classList.add('disabled');
+    el.title = 'Chrome / Edge が必要です';
+  });
+}
+
+updateFileInfo();
+render();
+
+// 空のrootに最初のノードを追加
+if (state.root.children.length === 0) {
+  state.root.children.push(createNode(''));
+  render();
+}
+</script>
+</body>
+</html>
