@@ -1315,7 +1315,7 @@ function handleKeyDown(e, node, textEl, noteEl) {
       if (lastFocus) { lastFocusId = lastFocus.id; lastFocusOffset = lastFocus.text.length; }
       render();
     } else if (isAtStart(textEl)) {
-      if (node.checked !== undefined && node.text === '') {
+      if (node.checked !== undefined) {
         e.preventDefault();
         recordHistory();
         node.checked = undefined;
