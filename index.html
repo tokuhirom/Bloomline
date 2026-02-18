@@ -283,6 +283,13 @@
     color: var(--muted);
   }
 
+  /* ===== INLINE LINK ===== */
+  .node-text a.md-link {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .node-text a.md-link:hover { text-decoration: underline; }
+
   /* ===== IMAGE PREVIEW ===== */
   .node-image-container {
     margin-top: 4px;
@@ -327,6 +334,109 @@
   #file-info.saved  { color: #4caf50; }
   .menu-item.disabled { color: var(--muted); cursor: default; pointer-events: none; }
 
+  /* ===== LAYOUT ===== */
+  #app-layout {
+    display: flex;
+    height: calc(100vh - 53px);
+    overflow: hidden;
+  }
+
+  /* ===== SIDEBAR ===== */
+  #sidebar {
+    width: 220px;
+    min-width: 220px;
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    background: #fafafa;
+    transition: width 0.2s, min-width 0.2s, padding 0.2s;
+  }
+  #sidebar.hidden {
+    width: 0;
+    min-width: 0;
+  }
+  #sidebar-header {
+    padding: 12px 12px 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+  }
+  #sidebar-drop-zone {
+    flex: 1;
+    min-height: 60px;
+    padding: 4px 0 12px;
+  }
+  #sidebar-drop-zone.drag-over {
+    background: #eff6ff;
+  }
+  #sidebar-empty {
+    padding: 8px 14px;
+    font-size: 12px;
+    color: #ccc;
+    white-space: nowrap;
+  }
+  .sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px 6px 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    margin: 1px 6px;
+    font-size: 13px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    user-select: none;
+  }
+  .sidebar-item:hover { background: var(--hover-bg); }
+  .sidebar-item.drag-over-top    { border-top: 2px solid var(--accent); }
+  .sidebar-item.drag-over-bottom { border-bottom: 2px solid var(--accent); }
+  .sidebar-item-label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .sidebar-item-remove {
+    flex-shrink: 0;
+    color: #ccc;
+    font-size: 14px;
+    line-height: 1;
+    padding: 2px 4px;
+    border-radius: 3px;
+    visibility: hidden;
+  }
+  .sidebar-item:hover .sidebar-item-remove { visibility: visible; }
+  .sidebar-item-remove:hover { background: #fee2e2; color: #ef4444; }
+
+  #sidebar-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    color: var(--muted);
+    padding: 4px 8px;
+    border-radius: 4px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  #sidebar-toggle:hover { background: var(--hover-bg); color: var(--text); }
+
+  /* ドラッグ中のbullet */
+  .bullet.dragging .bullet-dot { background: var(--accent); transform: scale(1.2); }
+
+  #main {
+    flex: 1;
+    overflow-y: auto;
+    min-width: 0;
+  }
+
   /* ===== TOAST ===== */
   #toast {
     position: fixed;
@@ -348,6 +458,7 @@
 <body>
 
 <div id="header">
+  <button id="sidebar-toggle" title="サイドバー">☰</button>
   <div id="breadcrumb"></div>
   <span id="file-info"></span>
   <input id="search-box" type="search" placeholder="検索..." autocomplete="off">
@@ -370,9 +481,19 @@
   </div>
 </div>
 
-<div id="content">
-  <div id="page-title" contenteditable="true" data-placeholder="タイトル"></div>
-  <ul id="node-root" class="node-list"></ul>
+<div id="app-layout">
+  <div id="sidebar">
+    <div id="sidebar-header">お気に入り</div>
+    <div id="sidebar-drop-zone">
+      <div id="sidebar-empty">● をここにドロップ</div>
+    </div>
+  </div>
+  <div id="main">
+    <div id="content">
+      <div id="page-title" contenteditable="true" data-placeholder="タイトル"></div>
+      <ul id="node-root" class="node-list"></ul>
+    </div>
+  </div>
 </div>
 
 <div id="toast"></div>
@@ -396,7 +517,7 @@ function createNode(text = '', checked = undefined) {
 function defaultState() {
   const root = createNode('');
   root.children.push(createNode(''));
-  return { root, currentPath: [], title: 'Bloomline', version: 1 };
+  return { root, currentPath: [], title: 'Bloomline', pinnedItems: [], version: 1 };
 }
 
 let state = loadState();
@@ -413,10 +534,10 @@ function loadState() {
 }
 
 function migrateState(s) {
-  // ensure fields exist
   if (!s.currentPath) s.currentPath = [];
   if (!s.title) s.title = 'Bloomline';
   if (!s.version) s.version = 1;
+  if (!s.pinnedItems) s.pinnedItems = [];
   ensureNodeFields(s.root);
   return s;
 }
@@ -530,6 +651,113 @@ async function saveFileAs() {
 }
 
 // ============================================================
+// サイドバー
+// ============================================================
+
+let sidebarVisible = true;
+let sidebarDragSrcIndex = null; // サイドバー内並び替え用
+
+function renderSidebar() {
+  const zone = document.getElementById('sidebar-drop-zone');
+  const empty = document.getElementById('sidebar-empty');
+  zone.querySelectorAll('.sidebar-item').forEach(el => el.remove());
+
+  // 削除済みノードを pinnedItems から除外
+  state.pinnedItems = state.pinnedItems.filter(id => !!findNode(id));
+
+  if (state.pinnedItems.length === 0) {
+    empty.style.display = '';
+  } else {
+    empty.style.display = 'none';
+    state.pinnedItems.forEach((nodeId, index) => {
+      const found = findNode(nodeId);
+      if (!found) return;
+      const node = found.node;
+
+      const item = document.createElement('div');
+      item.className = 'sidebar-item';
+      item.draggable = true;
+      item.dataset.index = index;
+
+      const label = document.createElement('span');
+      label.className = 'sidebar-item-label';
+      label.textContent = node.text || '(無題)';
+      label.title = node.text || '(無題)';
+
+      const removeBtn = document.createElement('span');
+      removeBtn.className = 'sidebar-item-remove';
+      removeBtn.textContent = '✕';
+      removeBtn.title = '削除';
+      removeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        state.pinnedItems.splice(index, 1);
+        saveState();
+        renderSidebar();
+      });
+
+      item.appendChild(label);
+      item.appendChild(removeBtn);
+
+      // クリックでズームイン
+      item.addEventListener('click', () => {
+        const path = getPathToNode(nodeId);
+        if (path) { state.currentPath = path; render(); }
+      });
+
+      // サイドバー内ドラッグ並び替え
+      item.addEventListener('dragstart', (e) => {
+        sidebarDragSrcIndex = index;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('sidebar-index', String(index));
+        e.stopPropagation(); // bulletのdragstartと干渉しない
+      });
+      item.addEventListener('dragover', (e) => {
+        if (sidebarDragSrcIndex === null) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        const rect = item.getBoundingClientRect();
+        const mid = rect.top + rect.height / 2;
+        item.classList.remove('drag-over-top', 'drag-over-bottom');
+        item.classList.add(e.clientY < mid ? 'drag-over-top' : 'drag-over-bottom');
+      });
+      item.addEventListener('dragleave', () => {
+        item.classList.remove('drag-over-top', 'drag-over-bottom');
+      });
+      item.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        item.classList.remove('drag-over-top', 'drag-over-bottom');
+        if (sidebarDragSrcIndex === null || sidebarDragSrcIndex === index) return;
+        const rect = item.getBoundingClientRect();
+        const insertAfter = e.clientY >= rect.top + rect.height / 2;
+        const [moved] = state.pinnedItems.splice(sidebarDragSrcIndex, 1);
+        let target = insertAfter ? index : index;
+        // sidebarDragSrcIndex が target より前なら、splice後にindexがずれる
+        let insertAt = sidebarDragSrcIndex < index
+          ? (insertAfter ? index : index - 1)
+          : (insertAfter ? index + 1 : index);
+        state.pinnedItems.splice(insertAt, 0, moved);
+        sidebarDragSrcIndex = null;
+        saveState();
+        renderSidebar();
+      });
+      item.addEventListener('dragend', () => {
+        sidebarDragSrcIndex = null;
+        document.querySelectorAll('.sidebar-item').forEach(el =>
+          el.classList.remove('drag-over-top', 'drag-over-bottom'));
+      });
+
+      zone.appendChild(item);
+    });
+  }
+}
+
+function toggleSidebar() {
+  sidebarVisible = !sidebarVisible;
+  document.getElementById('sidebar').classList.toggle('hidden', !sidebarVisible);
+}
+
+// ============================================================
 // ノード操作ヘルパー
 // ============================================================
 
@@ -542,6 +770,16 @@ function getCurrentRoot() {
     node = child;
   }
   return node;
+}
+
+// ルートからノードまでのIDパスを返す（見つからなければ null）
+function getPathToNode(targetId, current = state.root, path = []) {
+  for (const child of current.children) {
+    if (child.id === targetId) return [...path, child.id];
+    const result = getPathToNode(targetId, child, [...path, child.id]);
+    if (result !== null) return result;
+  }
+  return null;
 }
 
 // id でノードを探して返す（parent も返す）
@@ -613,6 +851,7 @@ function render() {
   const currentRoot = getCurrentRoot();
   renderBreadcrumb(currentRoot);
   renderNodes(currentRoot);
+  renderSidebar();
   saveState();
 }
 
@@ -719,8 +958,20 @@ function createNodeEl(node, depth) {
   bullet.appendChild(dot);
   bullet.addEventListener('click', (e) => {
     e.stopPropagation();
-    state.currentPath.push(node.id);
+    const path = getPathToNode(node.id);
+    if (path) state.currentPath = path;
     render();
+  });
+
+  // ● をサイドバーにドラッグ登録
+  bullet.draggable = true;
+  bullet.addEventListener('dragstart', (e) => {
+    e.dataTransfer.setData('node-id', node.id);
+    e.dataTransfer.effectAllowed = 'copy';
+    bullet.classList.add('dragging');
+  });
+  bullet.addEventListener('dragend', () => {
+    bullet.classList.remove('dragging');
   });
   row.appendChild(bullet);
 
@@ -739,6 +990,7 @@ function createNodeEl(node, depth) {
     cb.title = node.checked ? 'チェックを外す' : '完了にする';
     cb.addEventListener('click', (e) => {
       e.stopPropagation();
+      recordHistory();
       node.checked = !node.checked;
       lastFocusId = node.id;
       render();
@@ -751,8 +1003,13 @@ function createNodeEl(node, depth) {
   textEl.contentEditable = 'true';
   textEl.dataset.placeholder = node.checked !== undefined ? 'TODOを入力...' : '入力してください...';
   textEl.dataset.nodeId = node.id;
-  textEl.textContent = node.text;
   textEl.spellcheck = false;
+  // リンク記法があればレンダリング、なければテキスト
+  if (/\[[^\]]*\]\([^)]*\)/.test(node.text)) {
+    renderMarkdownLinks(textEl, node.text);
+  } else {
+    textEl.textContent = node.text;
+  }
 
   const noteEl = document.createElement('span');
   noteEl.className = 'node-note' + (node.note ? '' : ' hidden');
@@ -775,11 +1032,13 @@ function createNodeEl(node, depth) {
     node.text = raw;
     updateToggleBtn(li, node);
     refreshImagePreview(imgContainer, raw);
+    scheduleTextHistory();
     saveState();
   });
 
   noteEl.addEventListener('input', () => {
     node.note = noteEl.textContent;
+    scheduleTextHistory();
     saveState();
   });
 
@@ -787,11 +1046,28 @@ function createNodeEl(node, depth) {
   noteEl.addEventListener('keydown', (e) => handleNoteKeyDown(e, node, textEl, noteEl));
 
   textEl.addEventListener('focus', () => {
+    textEl.contentEditable = 'true';
     row.classList.add('focused');
     if (!suppressSelectionClear) clearSelection();
     suppressSelectionClear = false;
+    showRawText(textEl, node.text);
   });
-  textEl.addEventListener('blur', () => row.classList.remove('focused'));
+  textEl.addEventListener('blur', () => {
+    row.classList.remove('focused');
+    if (/\[[^\]]*\]\([^)]*\)/.test(node.text)) {
+      renderMarkdownLinks(textEl, node.text);
+      // 非編集状態ではリンクを本物として動作させる
+      textEl.contentEditable = 'false';
+    }
+  });
+  // view mode のとき（contentEditable=false）クリックで編集モードに入る
+  textEl.addEventListener('click', (e) => {
+    if (textEl.contentEditable === 'false') {
+      textEl.contentEditable = 'true';
+      showRawText(textEl, node.text);
+      textEl.focus();
+    }
+  });
 
   // 範囲選択（Shift+クリック & ドラッグ）
   row.addEventListener('mousedown', (e) => {
@@ -844,6 +1120,36 @@ function createNodeEl(node, depth) {
   }
 
   return li;
+}
+
+// ============================================================
+// Markdownリンクレンダリング
+// ============================================================
+
+function renderMarkdownLinks(el, text) {
+  // [label](url) をリンクに変換（それ以外はテキストのまま）
+  const parts = text.split(/(\[[^\]]*\]\([^)]*\))/g);
+  el.innerHTML = '';
+  parts.forEach(part => {
+    const m = part.match(/^\[([^\]]*)\]\(([^)]*)\)$/);
+    if (m) {
+      const a = document.createElement('a');
+      a.className = 'md-link';
+      a.textContent = m[1] || m[2];
+      a.href = m[2];
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      // stopPropagation でテキストエリアのクリックハンドラを止める
+      a.addEventListener('click', e => e.stopPropagation());
+      el.appendChild(a);
+    } else {
+      el.appendChild(document.createTextNode(part));
+    }
+  });
+}
+
+function showRawText(el, text) {
+  el.textContent = text;
 }
 
 // ============================================================
@@ -939,6 +1245,7 @@ function handleKeyDown(e, node, textEl, noteEl) {
 
   if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
     e.preventDefault();
+    recordHistory();
     const pos = getCursorPos(textEl);
     const text = node.text;
     const before = text.slice(0, pos);
@@ -966,9 +1273,9 @@ function handleKeyDown(e, node, textEl, noteEl) {
 
   } else if (e.key === 'Tab' && !e.shiftKey) {
     e.preventDefault();
+    recordHistory();
     const sel = getSelectionRange();
     if (sel.length > 1) {
-      // 下から上へ処理（インデックスずれを防ぐ）
       for (let i = sel.length - 1; i >= 0; i--) indentNode(sel[i], currentRoot, true);
       clearSelection();
       render();
@@ -978,9 +1285,9 @@ function handleKeyDown(e, node, textEl, noteEl) {
 
   } else if (e.key === 'Tab' && e.shiftKey) {
     e.preventDefault();
+    recordHistory();
     const sel = getSelectionRange();
     if (sel.length > 1) {
-      // 上から下へ処理
       sel.forEach(n => outdentNode(n, currentRoot, true));
       clearSelection();
       render();
@@ -992,12 +1299,12 @@ function handleKeyDown(e, node, textEl, noteEl) {
     const sel = getSelectionRange();
     if (sel.length > 1) {
       e.preventDefault();
-      // 下から上へ削除
-      const lastFocus = flatVisibleNodes(currentRoot).find(
+      recordHistory();
+      const flat = flatVisibleNodes(currentRoot);
+      const lastFocus = flat.find(
         n => !sel.find(s => s.id === n.id) &&
-             flatVisibleNodes(currentRoot).indexOf(n) <
-             flatVisibleNodes(currentRoot).indexOf(sel[0])
-      ) || flatVisibleNodes(currentRoot).find(n => !sel.find(s => s.id === n.id));
+             flat.indexOf(n) < flat.indexOf(sel[0])
+      ) || flat.find(n => !sel.find(s => s.id === n.id));
       for (let i = sel.length - 1; i >= 0; i--) {
         const res = findNode(sel[i].id, currentRoot);
         if (res && !(res.parent === currentRoot && res.parent.children.length === 1)) {
@@ -1010,6 +1317,7 @@ function handleKeyDown(e, node, textEl, noteEl) {
     } else if (isAtStart(textEl)) {
       if (node.checked !== undefined && node.text === '') {
         e.preventDefault();
+        recordHistory();
         node.checked = undefined;
         lastFocusId = node.id;
         lastFocusOffset = 0;
@@ -1071,6 +1379,7 @@ function indentNode(node, currentRoot, skipRender = false) {
   if (!res) return;
   const { parent, index } = res;
   if (index === 0) return;
+  if (!skipRender) recordHistory();
 
   const prevSibling = parent.children[index - 1];
   parent.children.splice(index, 1);
@@ -1085,6 +1394,7 @@ function outdentNode(node, currentRoot, skipRender = false) {
   const res = findNode(node.id, currentRoot);
   if (!res) return;
   const { parent, index } = res;
+  if (!skipRender) recordHistory();
 
   const parentRes = parent === currentRoot ? null : findNode(parent.id, currentRoot);
   if (!parentRes && parent !== currentRoot) return;
@@ -1110,8 +1420,8 @@ function removeNode(node, currentRoot) {
   if (!res) return;
   const { parent, index } = res;
 
-  // root の最後の子は削除しない
   if (parent === currentRoot && parent.children.length === 1) return;
+  recordHistory();
 
   // フォーカス先を削除前に確定する
   const flat = flatVisibleNodes(currentRoot);
@@ -1127,6 +1437,7 @@ function removeNode(node, currentRoot) {
 }
 
 function mergeWithPrev(node, textEl, currentRoot) {
+  recordHistory();
   const flat = flatVisibleNodes(currentRoot);
   const idx = flat.findIndex(n => n.id === node.id);
   if (idx <= 0) return;
@@ -1177,11 +1488,20 @@ function applySearch() {
   if (!q) {
     document.querySelectorAll('.node-item').forEach(el => el.classList.remove('search-hidden'));
     document.querySelectorAll('.node-text, .node-note').forEach(el => {
-      el.innerHTML = '';
       const nodeId = el.dataset.nodeId;
       const node = nodeId ? findNode(nodeId)?.node : null;
-      if (node) {
-        el.textContent = el.classList.contains('node-text') ? node.text : node.note;
+      if (!node) return;
+      if (el.classList.contains('node-text')) {
+        if (/\[[^\]]*\]\([^)]*\)/.test(node.text) && el.contentEditable !== 'true') {
+          renderMarkdownLinks(el, node.text);
+          el.contentEditable = 'false';
+        } else if (el.contentEditable === 'true') {
+          // 編集中はテキストのまま（触らない）
+        } else {
+          el.textContent = node.text;
+        }
+      } else {
+        el.textContent = node.note;
       }
     });
     return;
@@ -1331,6 +1651,69 @@ function showToast(msg) {
 }
 
 // ============================================================
+// Undo / Redo
+// ============================================================
+const MAX_UNDO = 100;
+let undoStack = [];
+let undoIdx = -1;
+let undoInProgress = false;
+let textHistoryTimer = null;
+
+function snapshotForHistory() {
+  return JSON.parse(JSON.stringify({
+    root: state.root,
+    currentPath: [...state.currentPath],
+    title: state.title
+  }));
+}
+
+function recordHistory() {
+  if (undoInProgress) return;
+  clearTimeout(textHistoryTimer);
+  textHistoryTimer = null;
+  undoStack = undoStack.slice(0, undoIdx + 1);
+  undoStack.push(snapshotForHistory());
+  if (undoStack.length > MAX_UNDO) undoStack.shift();
+  else undoIdx++;
+}
+
+function scheduleTextHistory() {
+  if (undoInProgress) return;
+  clearTimeout(textHistoryTimer);
+  textHistoryTimer = setTimeout(recordHistory, 1500);
+}
+
+function undo() {
+  // テキスト入力の保留中スナップショットを即時確定
+  if (textHistoryTimer) { clearTimeout(textHistoryTimer); textHistoryTimer = null; recordHistory(); }
+  if (undoIdx <= 0) return;
+  undoIdx--;
+  undoInProgress = true;
+  const snap = undoStack[undoIdx];
+  state.root = snap.root;
+  state.currentPath = snap.currentPath;
+  state.title = snap.title;
+  render();
+  saveState();
+  undoInProgress = false;
+  showToast('元に戻しました');
+}
+
+function redo() {
+  if (undoIdx >= undoStack.length - 1) return;
+  undoIdx++;
+  undoInProgress = true;
+  const snap = undoStack[undoIdx];
+  state.root = snap.root;
+  state.currentPath = snap.currentPath;
+  state.title = snap.title;
+  render();
+  saveState();
+  undoInProgress = false;
+  showToast('やり直しました');
+}
+
+// ============================================================
 // イベントリスナー
 // ============================================================
 
@@ -1375,12 +1758,43 @@ document.getElementById('search-box').addEventListener('input', (e) => {
   applySearch();
 });
 
+// サイドバートグル
+document.getElementById('sidebar-toggle').addEventListener('click', toggleSidebar);
+
+// サイドバードロップゾーン
+const sidebarDropZone = document.getElementById('sidebar-drop-zone');
+sidebarDropZone.addEventListener('dragover', (e) => {
+  if (!e.dataTransfer.types.includes('node-id')) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'copy';
+  sidebarDropZone.classList.add('drag-over');
+});
+sidebarDropZone.addEventListener('dragleave', (e) => {
+  if (!sidebarDropZone.contains(e.relatedTarget)) {
+    sidebarDropZone.classList.remove('drag-over');
+  }
+});
+sidebarDropZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  sidebarDropZone.classList.remove('drag-over');
+  const nodeId = e.dataTransfer.getData('node-id');
+  if (!nodeId) return;
+  if (state.pinnedItems.includes(nodeId)) {
+    showToast('すでに登録済みです');
+    return;
+  }
+  state.pinnedItems.push(nodeId);
+  saveState();
+  renderSidebar();
+  showToast('お気に入りに追加しました');
+});
+
 // ページタイトル編集
 const titleEl = document.getElementById('page-title');
 titleEl.addEventListener('input', () => {
   state.title = titleEl.textContent;
+  scheduleTextHistory();
   saveState();
-  // update breadcrumb
   renderBreadcrumb(getCurrentRoot());
 });
 titleEl.addEventListener('keydown', (e) => {
@@ -1394,6 +1808,17 @@ titleEl.addEventListener('keydown', (e) => {
 
 // キーボードショートカット
 document.addEventListener('keydown', (e) => {
+  // Undo / Redo
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+    e.preventDefault();
+    undo();
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+    e.preventDefault();
+    redo();
+    return;
+  }
   // Escape でズームアウト
   if (e.key === 'Escape' && state.currentPath.length > 0) {
     state.currentPath.pop();
@@ -1415,12 +1840,16 @@ if (!hasFileSystemAccess) {
 
 updateFileInfo();
 render();
+renderSidebar();
 
 // 空のrootに最初のノードを追加
 if (state.root.children.length === 0) {
   state.root.children.push(createNode(''));
   render();
 }
+
+// 初期スナップショット
+recordHistory();
 </script>
 </body>
 </html>
