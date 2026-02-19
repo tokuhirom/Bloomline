@@ -1,5 +1,5 @@
 import { store } from './store';
-import { createNode } from './model';
+import { createNode, uuid } from './model';
 import {
   getCurrentRoot, findNode, flatVisibleNodes, getPathToNode,
 } from './nodeHelpers';
@@ -248,6 +248,55 @@ export function handleKeyDown(
   } else if (e.key === 'u' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
     e.preventDefault();
     wrapWithMarkdown(textEl, node, '__');
+
+  } else if (e.key === 'c' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+    const sel = getSelectionRange();
+    if (sel.length > 1) {
+      e.preventDefault();
+      store.clipboardNodes = sel.map(deepCloneNode);
+      store.clipboardIsCut = false;
+      copyToOsClipboard(sel);
+      showToast(`${sel.length} 件をコピーしました`);
+    }
+
+  } else if (e.key === 'x' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+    const sel = getSelectionRange();
+    if (sel.length > 1) {
+      e.preventDefault();
+      store.clipboardNodes = sel.map(deepCloneNode);
+      store.clipboardIsCut = true;
+      copyToOsClipboard(sel);
+      recordHistory();
+      const flat = flatVisibleNodes(currentRoot);
+      const lastFocus = flat.find(
+        n => !sel.find(s => s.id === n.id) &&
+             flat.indexOf(n) < flat.indexOf(sel[0])
+      ) || flat.find(n => !sel.find(s => s.id === n.id));
+      for (let i = sel.length - 1; i >= 0; i--) {
+        const res = findNode(sel[i].id, currentRoot);
+        if (res && !(res.parent === currentRoot && res.parent!.children.length === 1)) {
+          res.parent!.children.splice(res.index, 1);
+        }
+      }
+      clearSelection();
+      if (lastFocus) { store.lastFocusId = lastFocus.id; store.lastFocusOffset = lastFocus.text.length; }
+      _render?.();
+      showToast(`${store.clipboardNodes.length} 件をカットしました`);
+    }
+
+  } else if (e.key === 'v' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+    if (store.clipboardNodes && store.clipboardNodes.length > 0) {
+      e.preventDefault();
+      recordHistory();
+      const res = findNode(node.id, currentRoot);
+      if (!res) return;
+      const newNodes = store.clipboardNodes.map(deepCloneNode);
+      res.parent!.children.splice(res.index + 1, 0, ...newNodes);
+      clearSelection();
+      store.lastFocusId = newNodes[0].id;
+      _render?.();
+      showToast(`${newNodes.length} 件をペーストしました`);
+    }
   }
 }
 
@@ -404,6 +453,27 @@ export function wrapWithMarkdown(textEl: HTMLElement, node: BloomlineNode, marke
   }
   recordHistory();
   _render?.();
+}
+
+function deepCloneNode(node: BloomlineNode): BloomlineNode {
+  return {
+    ...node,
+    id: uuid(),
+    children: node.children.map(deepCloneNode),
+  };
+}
+
+function nodesToText(nodes: BloomlineNode[], indent = 0): string {
+  return nodes.map(n => {
+    const line = '  '.repeat(indent) + n.text;
+    const children = nodesToText(n.children, indent + 1);
+    return children ? line + '\n' + children : line;
+  }).join('\n');
+}
+
+function copyToOsClipboard(nodes: BloomlineNode[]): void {
+  const text = nodesToText(nodes);
+  navigator.clipboard.writeText(text).catch(() => {});
 }
 
 export function moveFocusPrev(node: BloomlineNode, currentRoot: BloomlineNode): void {
