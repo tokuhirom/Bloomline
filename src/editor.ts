@@ -254,8 +254,9 @@ export function handleKeyDown(
     if (sel.length > 1) {
       e.preventDefault();
       store.clipboardNodes = sel.map(deepCloneNode);
+      store.clipboardText = nodesToText(sel);
       store.clipboardIsCut = false;
-      copyToOsClipboard(sel);
+      copyToOsClipboard(store.clipboardText);
       showToast(`${sel.length} 件をコピーしました`);
     }
 
@@ -264,8 +265,9 @@ export function handleKeyDown(
     if (sel.length > 1) {
       e.preventDefault();
       store.clipboardNodes = sel.map(deepCloneNode);
+      store.clipboardText = nodesToText(sel);
       store.clipboardIsCut = true;
-      copyToOsClipboard(sel);
+      copyToOsClipboard(store.clipboardText);
       recordHistory();
       const flat = flatVisibleNodes(currentRoot);
       const lastFocus = flat.find(
@@ -283,21 +285,26 @@ export function handleKeyDown(
       _render?.();
       showToast(`${store.clipboardNodes.length} 件をカットしました`);
     }
-
-  } else if (e.key === 'v' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
-    if (store.clipboardNodes && store.clipboardNodes.length > 0) {
-      e.preventDefault();
-      recordHistory();
-      const res = findNode(node.id, currentRoot);
-      if (!res) return;
-      const newNodes = store.clipboardNodes.map(deepCloneNode);
-      res.parent!.children.splice(res.index + 1, 0, ...newNodes);
-      clearSelection();
-      store.lastFocusId = newNodes[0].id;
-      _render?.();
-      showToast(`${newNodes.length} 件をペーストしました`);
-    }
   }
+}
+
+// ペーストイベント：OS クリップボードのテキストが自分がコピーしたものと一致する場合のみノードペースト
+export function handlePaste(e: ClipboardEvent, node: BloomlineNode): void {
+  if (!store.clipboardNodes || !store.clipboardText) return;
+  const pastedText = e.clipboardData?.getData('text') ?? '';
+  if (pastedText !== store.clipboardText) return;
+
+  e.preventDefault();
+  const currentRoot = getCurrentRoot();
+  const res = findNode(node.id, currentRoot);
+  if (!res) return;
+  recordHistory();
+  const newNodes = store.clipboardNodes.map(deepCloneNode);
+  res.parent!.children.splice(res.index + 1, 0, ...newNodes);
+  clearSelection();
+  store.lastFocusId = newNodes[0].id;
+  _render?.();
+  showToast(`${newNodes.length} 件をペーストしました`);
 }
 
 export function handleNoteKeyDown(
@@ -455,7 +462,7 @@ export function wrapWithMarkdown(textEl: HTMLElement, node: BloomlineNode, marke
   _render?.();
 }
 
-function deepCloneNode(node: BloomlineNode): BloomlineNode {
+export function deepCloneNode(node: BloomlineNode): BloomlineNode {
   return {
     ...node,
     id: uuid(),
@@ -463,7 +470,7 @@ function deepCloneNode(node: BloomlineNode): BloomlineNode {
   };
 }
 
-function nodesToText(nodes: BloomlineNode[], indent = 0): string {
+export function nodesToText(nodes: BloomlineNode[], indent = 0): string {
   return nodes.map(n => {
     const line = '  '.repeat(indent) + n.text;
     const children = nodesToText(n.children, indent + 1);
@@ -471,8 +478,7 @@ function nodesToText(nodes: BloomlineNode[], indent = 0): string {
   }).join('\n');
 }
 
-function copyToOsClipboard(nodes: BloomlineNode[]): void {
-  const text = nodesToText(nodes);
+function copyToOsClipboard(text: string): void {
   navigator.clipboard.writeText(text).catch(() => {});
 }
 

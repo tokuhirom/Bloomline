@@ -13,6 +13,7 @@ export const store: {
   dragNodeId: string | null;
   hideChecked: boolean;
   clipboardNodes: BloomlineNode[] | null;
+  clipboardText: string | null;
   clipboardIsCut: boolean;
 } = {
   state: null as unknown as AppState, // set in main.ts before any render
@@ -27,5 +28,6 @@ export const store: {
   dragNodeId: null,
   hideChecked: false,
   clipboardNodes: null,
+  clipboardText: null,
   clipboardIsCut: false,
 };
