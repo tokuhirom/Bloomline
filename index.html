@@ -1004,9 +1004,10 @@ function createNodeEl(node, depth) {
   textEl.dataset.placeholder = node.checked !== undefined ? 'TODOを入力...' : '入力してください...';
   textEl.dataset.nodeId = node.id;
   textEl.spellcheck = false;
-  // リンク記法があればレンダリング、なければテキスト
-  if (/\[[^\]]*\]\([^)]*\)/.test(node.text)) {
+  // リンク記法があればレンダリングし非編集モードに、なければテキスト
+  if (HAS_LINK_RE.test(node.text)) {
     renderMarkdownLinks(textEl, node.text);
+    textEl.contentEditable = 'false';
   } else {
     textEl.textContent = node.text;
   }
@@ -1054,7 +1055,7 @@ function createNodeEl(node, depth) {
   });
   textEl.addEventListener('blur', () => {
     row.classList.remove('focused');
-    if (/\[[^\]]*\]\([^)]*\)/.test(node.text)) {
+    if (HAS_LINK_RE.test(node.text)) {
       renderMarkdownLinks(textEl, node.text);
       // 非編集状態ではリンクを本物として動作させる
       textEl.contentEditable = 'false';
@@ -1126,20 +1127,31 @@ function createNodeEl(node, depth) {
 // Markdownリンクレンダリング
 // ============================================================
 
+const HAS_LINK_RE = /\[[^\]]*\]\([^)]*\)|https?:\/\//;
+
 function renderMarkdownLinks(el, text) {
-  // [label](url) をリンクに変換（それ以外はテキストのまま）
-  const parts = text.split(/(\[[^\]]*\]\([^)]*\))/g);
+  // [label](url) と生URL(https?://) の両方をリンクに変換
+  const parts = text.split(/(\[[^\]]*\]\([^)]*\)|https?:\/\/\S+)/g);
   el.innerHTML = '';
   parts.forEach(part => {
-    const m = part.match(/^\[([^\]]*)\]\(([^)]*)\)$/);
-    if (m) {
+    const mdMatch = part.match(/^\[([^\]]*)\]\(([^)]*)\)$/);
+    const urlMatch = part.match(/^https?:\/\/\S+$/);
+    if (mdMatch) {
       const a = document.createElement('a');
       a.className = 'md-link';
-      a.textContent = m[1] || m[2];
-      a.href = m[2];
+      a.textContent = mdMatch[1] || mdMatch[2];
+      a.href = mdMatch[2];
       a.target = '_blank';
       a.rel = 'noopener noreferrer';
-      // stopPropagation でテキストエリアのクリックハンドラを止める
+      a.addEventListener('click', e => e.stopPropagation());
+      el.appendChild(a);
+    } else if (urlMatch) {
+      const a = document.createElement('a');
+      a.className = 'md-link';
+      a.textContent = part;
+      a.href = part;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
       a.addEventListener('click', e => e.stopPropagation());
       el.appendChild(a);
     } else {
@@ -1364,6 +1376,18 @@ function handleKeyDown(e, node, textEl, noteEl) {
   } else if (e.key === 'Escape') {
     if (selAnchorId) { clearSelection(); }
 
+  } else if (e.key === 'ArrowRight' && (e.metaKey || e.ctrlKey)) {
+    // Cmd/Ctrl+→: 親ノードを折りたたむ
+    const res = findNode(node.id, currentRoot);
+    if (res && res.parent && res.parent !== currentRoot) {
+      e.preventDefault();
+      recordHistory();
+      res.parent.collapsed = true;
+      lastFocusId = res.parent.id;
+      lastFocusOffset = 0;
+      render();
+    }
+
   }
 }
 
@@ -1492,7 +1516,7 @@ function applySearch() {
       const node = nodeId ? findNode(nodeId)?.node : null;
       if (!node) return;
       if (el.classList.contains('node-text')) {
-        if (/\[[^\]]*\]\([^)]*\)/.test(node.text) && el.contentEditable !== 'true') {
+        if (HAS_LINK_RE.test(node.text) && el.contentEditable !== 'true') {
           renderMarkdownLinks(el, node.text);
           el.contentEditable = 'false';
         } else if (el.contentEditable === 'true') {
