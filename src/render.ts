@@ -176,7 +176,12 @@ export function createNodeEl(node: BloomlineNode, depth: number): HTMLLIElement 
   textEl.dataset.placeholder = node.checked !== undefined ? 'TODOを入力...' : '入力してください...';
   textEl.dataset.nodeId = node.id;
   textEl.spellcheck = false;
-  if (HAS_INLINE_RE.test(node.text)) {
+  // calendarType が year/month/day のノードは編集不可
+  const isCalendarDateNode = ['year', 'month', 'day'].includes(node.calendarType ?? '');
+  if (isCalendarDateNode) {
+    textEl.contentEditable = 'false';
+    textEl.textContent = node.text;
+  } else if (HAS_INLINE_RE.test(node.text)) {
     renderInlineContent(textEl, node.text);
     textEl.contentEditable = 'false';
   } else {
@@ -195,6 +200,7 @@ export function createNodeEl(node: BloomlineNode, depth: number): HTMLLIElement 
   refreshImagePreview(imgContainer, node.text);
 
   textEl.addEventListener('input', () => {
+    if (isCalendarDateNode) return;
     const raw = textEl.textContent!;
     if (/^\[\s?\] /.test(raw)) {
       node.checked = false;
@@ -221,6 +227,7 @@ export function createNodeEl(node: BloomlineNode, depth: number): HTMLLIElement 
   noteEl.addEventListener('keydown', (e) => handleNoteKeyDown(e, node, textEl, noteEl));
 
   textEl.addEventListener('focus', () => {
+    if (isCalendarDateNode) { textEl.blur(); return; }
     textEl.contentEditable = 'true';
     row.classList.add('focused');
     if (!store.suppressSelectionClear) clearSelection();
@@ -229,12 +236,13 @@ export function createNodeEl(node: BloomlineNode, depth: number): HTMLLIElement 
   });
   textEl.addEventListener('blur', () => {
     row.classList.remove('focused');
-    if (HAS_INLINE_RE.test(node.text)) {
+    if (!isCalendarDateNode && HAS_INLINE_RE.test(node.text)) {
       renderInlineContent(textEl, node.text);
       textEl.contentEditable = 'false';
     }
   });
   textEl.addEventListener('click', () => {
+    if (isCalendarDateNode) return;
     if (textEl.contentEditable === 'false') {
       textEl.contentEditable = 'true';
       showRawText(textEl, node.text);

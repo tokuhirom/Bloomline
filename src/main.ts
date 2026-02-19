@@ -11,6 +11,7 @@ import { initExportImport, exportText, exportJson, exportOpml, importJson } from
 import { applySearch } from './search';
 import { getCurrentRoot } from './nodeHelpers';
 import { showToast } from './toast';
+import { initCalendar, openCalendar } from './calendar';
 
 // ============================================================
 // 初期化（最初にstateをロードする）
@@ -25,10 +26,14 @@ initHistory(render);
 initSidebar(render, saveState);
 initFileSystem(render, saveState);
 initExportImport(render, saveState);
+initCalendar(render);
 
 // ============================================================
 // イベントリスナー
 // ============================================================
+
+// カレンダー
+document.getElementById('calendar-btn')!.addEventListener('click', openCalendar);
 
 // メニュー
 document.getElementById('menu-btn')!.addEventListener('click', (e) => {
