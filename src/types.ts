@@ -5,6 +5,7 @@ export interface BloomlineNode {
   children: BloomlineNode[];
   collapsed: boolean;
   checked?: boolean; // undefined = not a todo, false = unchecked, true = checked
+  calendarType?: 'root' | 'year' | 'month' | 'day'; // calendar hierarchy
 }
 
 export interface AppState {
