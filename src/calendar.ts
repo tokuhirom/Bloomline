@@ -52,11 +52,16 @@ export function openCalendar(): void {
     monthNode.collapsed = false;
   }
 
-  // 常に日ノードにズームイン
+  // 空の子ノードがなければ追加（常に1行は編集できるようにする）
+  if (dayNode.children.length === 0) {
+    dayNode.children.push(createNode(''));
+  }
+
+  // 常に日ノードにズームイン。フォーカスは最初の子ノードへ
   recordHistory();
   const path = getPathToNode(dayNode.id);
   if (path) store.state.currentPath = path;
-  store.lastFocusId = dayNode.id;
+  store.lastFocusId = dayNode.children[0].id;
   _render?.();
   saveState();
 }
