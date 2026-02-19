@@ -1,6 +1,6 @@
 import { store } from './store';
 import { createNode, saveState } from './model';
-import { getCurrentRoot, getPathToNode, flatVisibleNodes } from './nodeHelpers';
+import { getPathToNode } from './nodeHelpers';
 import { recordHistory } from './history';
 
 let _render: (() => void) | null = null;
@@ -52,17 +52,11 @@ export function openCalendar(): void {
     monthNode.collapsed = false;
   }
 
-  // 現在の表示領域に日ノードが見えているか確認
-  const visibleIds = new Set(flatVisibleNodes(getCurrentRoot()).map(n => n.id));
-  if (visibleIds.has(dayNode.id)) {
-    store.lastFocusId = dayNode.id;
-    _render?.();
-  } else {
-    recordHistory();
-    const path = getPathToNode(dayNode.id);
-    if (path) store.state.currentPath = path;
-    store.lastFocusId = dayNode.id;
-    _render?.();
-  }
+  // 常に日ノードにズームイン
+  recordHistory();
+  const path = getPathToNode(dayNode.id);
+  if (path) store.state.currentPath = path;
+  store.lastFocusId = dayNode.id;
+  _render?.();
   saveState();
 }
