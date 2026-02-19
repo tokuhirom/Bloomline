@@ -591,22 +591,36 @@
     <div id="shortcuts-body">
       <div class="sc-section">編集</div>
       <div class="sc-row"><kbd>Enter</kbd><span>新規アイテムを追加（カーソル位置で分割）</span></div>
+      <div class="sc-row"><kbd>Shift+Enter</kbd><span>ノートを追加してフォーカス</span></div>
       <div class="sc-row"><kbd>Backspace</kbd><span>空行を削除 / 前の行と結合 / チェックボックスを外す</span></div>
+      <div class="sc-row"><kbd>⌘ Shift+BS</kbd><span>ノードを削除（子ごと）</span></div>
       <div class="sc-row"><kbd>Tab</kbd><span>インデント（子にする）</span></div>
       <div class="sc-row"><kbd>Shift+Tab</kbd><span>アウトデント（親の兄弟に昇格）</span></div>
+
+      <div class="sc-section">移動</div>
+      <div class="sc-row"><kbd>Alt+Shift+↑</kbd><span>ノードを上に移動</span></div>
+      <div class="sc-row"><kbd>Alt+Shift+↓</kbd><span>ノードを下に移動</span></div>
+      <div class="sc-row"><kbd>Alt+Shift+←</kbd><span>アウトデント（Shift+Tabと同じ）</span></div>
+      <div class="sc-row"><kbd>Alt+Shift+→</kbd><span>インデント（Tabと同じ）</span></div>
 
       <div class="sc-section">TODO</div>
       <div class="sc-row"><kbd>[] + スペース</kbd><span>TODOチェックボックスに変換</span></div>
       <div class="sc-row"><kbd>⌘ Enter</kbd><span>完了 / 未完了を切り替え</span></div>
+      <div class="sc-row"><kbd>⌘ O</kbd><span>完了タスクを非表示 / 再表示</span></div>
 
       <div class="sc-section">ナビゲーション</div>
       <div class="sc-row"><kbd>↑ / ↓</kbd><span>上下の行へ移動</span></div>
       <div class="sc-row"><kbd>Shift+↑ / ↓</kbd><span>複数行を範囲選択</span></div>
       <div class="sc-row"><kbd>Escape</kbd><span>ズームアウト / 選択解除</span></div>
 
-      <div class="sc-section">表示</div>
-      <div class="sc-row"><kbd>▶ クリック</kbd><span>折りたたむ / 展開する</span></div>
+      <div class="sc-section">ズーム・折りたたみ</div>
       <div class="sc-row"><kbd>● クリック</kbd><span>そのノードにズームイン</span></div>
+      <div class="sc-row"><kbd>Alt+→</kbd><span>ズームイン</span></div>
+      <div class="sc-row"><kbd>Alt+←</kbd><span>ズームアウト</span></div>
+      <div class="sc-row"><kbd>▶ クリック</kbd><span>折りたたむ / 展開する</span></div>
+      <div class="sc-row"><kbd>Ctrl+Space</kbd><span>折りたたみをトグル</span></div>
+      <div class="sc-row"><kbd>Ctrl+↑</kbd><span>たたむ</span></div>
+      <div class="sc-row"><kbd>Ctrl+↓</kbd><span>展開する</span></div>
       <div class="sc-row"><kbd>⌘ →</kbd><span>親ノードを折りたたむ</span></div>
 
       <div class="sc-section">選択中の一括操作</div>
@@ -618,9 +632,20 @@
       <div class="sc-row"><kbd>⌘ Z</kbd><span>元に戻す</span></div>
       <div class="sc-row"><kbd>⌘ Shift+Z</kbd><span>やり直し</span></div>
 
+      <div class="sc-section">書式設定</div>
+      <div class="sc-row"><kbd>⌘ B</kbd><span>太字（**テキスト**）</span></div>
+      <div class="sc-row"><kbd>⌘ I</kbd><span>斜体（*テキスト*）</span></div>
+      <div class="sc-row"><kbd>⌘ U</kbd><span>下線（__テキスト__）</span></div>
+
       <div class="sc-section">記法</div>
+      <div class="sc-row"><kbd>**テキスト**</kbd><span>太字</span></div>
+      <div class="sc-row"><kbd>*テキスト*</kbd><span>斜体</span></div>
+      <div class="sc-row"><kbd>__テキスト__</kbd><span>下線</span></div>
       <div class="sc-row"><kbd>[テキスト](URL)</kbd><span>クリッカブルなリンクに変換</span></div>
       <div class="sc-row"><kbd>https://...</kbd><span>URLを自動でリンク表示</span></div>
+
+      <div class="sc-section">その他</div>
+      <div class="sc-row"><kbd>⌘ ?</kbd><span>このショートカット一覧を表示</span></div>
     </div>
     <button id="shortcuts-close">閉じる</button>
   </div>
@@ -1196,8 +1221,8 @@ function createNodeEl(node, depth) {
   textEl.dataset.nodeId = node.id;
   textEl.spellcheck = false;
   // リンク記法があればレンダリングし非編集モードに、なければテキスト
-  if (HAS_LINK_RE.test(node.text)) {
-    renderMarkdownLinks(textEl, node.text);
+  if (HAS_INLINE_RE.test(node.text)) {
+    renderInlineContent(textEl, node.text);
     textEl.contentEditable = 'false';
   } else {
     textEl.textContent = node.text;
@@ -1246,8 +1271,8 @@ function createNodeEl(node, depth) {
   });
   textEl.addEventListener('blur', () => {
     row.classList.remove('focused');
-    if (HAS_LINK_RE.test(node.text)) {
-      renderMarkdownLinks(textEl, node.text);
+    if (HAS_INLINE_RE.test(node.text)) {
+      renderInlineContent(textEl, node.text);
       // 非編集状態ではリンクを本物として動作させる
       textEl.contentEditable = 'false';
     }
@@ -1350,16 +1375,31 @@ function createNodeEl(node, depth) {
 // Markdownリンクレンダリング
 // ============================================================
 
-const HAS_LINK_RE = /\[[^\]]*\]\([^)]*\)|https?:\/\//;
+const HAS_INLINE_RE = /\[[^\]]*\]\([^)]*\)|https?:\/\/|\*\*[^*]+\*\*|\*[^*\s][^*]*[^*\s]\*|\*[^*\s]\*|__[^_]+__/;
 
-function renderMarkdownLinks(el, text) {
-  // [label](url) と生URL(https?://) の両方をリンクに変換
-  const parts = text.split(/(\[[^\]]*\]\([^)]*\)|https?:\/\/\S+)/g);
+function renderInlineContent(el, text) {
+  // **bold**, *italic*, __underline__, [label](url), 生URL を処理
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*\s][^*]*[^*\s]\*|\*[^*\s]\*|__[^_]+__|\[[^\]]*\]\([^)]*\)|https?:\/\/\S+)/g);
   el.innerHTML = '';
   parts.forEach(part => {
+    const boldMatch = part.match(/^\*\*([^*]+)\*\*$/);
+    const italicMatch = part.match(/^\*([^*\s](?:[^*]*[^*\s])?)\*$/);
+    const underlineMatch = part.match(/^__([^_]+)__$/);
     const mdMatch = part.match(/^\[([^\]]*)\]\(([^)]*)\)$/);
     const urlMatch = part.match(/^https?:\/\/\S+$/);
-    if (mdMatch) {
+    if (boldMatch) {
+      const b = document.createElement('b');
+      b.textContent = boldMatch[1];
+      el.appendChild(b);
+    } else if (italicMatch) {
+      const em = document.createElement('em');
+      em.textContent = italicMatch[1];
+      el.appendChild(em);
+    } else if (underlineMatch) {
+      const u = document.createElement('u');
+      u.textContent = underlineMatch[1];
+      el.appendChild(u);
+    } else if (mdMatch) {
       const a = document.createElement('a');
       a.className = 'md-link';
       a.textContent = mdMatch[1] || mdMatch[2];
@@ -1487,6 +1527,19 @@ function handleKeyDown(e, node, textEl, noteEl) {
       render();
     }
 
+  } else if (e.key === 'Enter' && e.shiftKey && !e.isComposing) {
+    // Shift+Enter: ノートを追加してフォーカス
+    e.preventDefault();
+    noteEl.classList.remove('hidden');
+    noteEl.focus();
+    // カーソルを末尾に
+    const r = document.createRange();
+    r.selectNodeContents(noteEl);
+    r.collapse(false);
+    const s = window.getSelection();
+    s.removeAllRanges();
+    s.addRange(r);
+
   } else if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
     e.preventDefault();
     recordHistory();
@@ -1575,7 +1628,7 @@ function handleKeyDown(e, node, textEl, noteEl) {
       }
     }
 
-  } else if (e.key === 'ArrowUp' && e.shiftKey) {
+  } else if (e.key === 'ArrowUp' && e.shiftKey && !e.altKey) {
     e.preventDefault();
     const flat = flatVisibleNodes(currentRoot);
     if (!selAnchorId) selAnchorId = node.id;
@@ -1585,7 +1638,7 @@ function handleKeyDown(e, node, textEl, noteEl) {
     suppressSelectionClear = true;
     updateSelectionDisplay();
 
-  } else if (e.key === 'ArrowDown' && e.shiftKey) {
+  } else if (e.key === 'ArrowDown' && e.shiftKey && !e.altKey) {
     e.preventDefault();
     const flat = flatVisibleNodes(currentRoot);
     if (!selAnchorId) selAnchorId = node.id;
@@ -1594,6 +1647,26 @@ function handleKeyDown(e, node, textEl, noteEl) {
     if (idx < flat.length - 1) selFocusId = flat[idx + 1].id;
     suppressSelectionClear = true;
     updateSelectionDisplay();
+
+  } else if (e.key === 'ArrowUp' && e.ctrlKey && !e.shiftKey && !e.altKey) {
+    // Ctrl+↑: たたむ
+    e.preventDefault();
+    if (node.children.length > 0) {
+      recordHistory();
+      node.collapsed = true;
+      lastFocusId = node.id;
+      render();
+    }
+
+  } else if (e.key === 'ArrowDown' && e.ctrlKey && !e.shiftKey && !e.altKey) {
+    // Ctrl+↓: 展開
+    e.preventDefault();
+    if (node.children.length > 0) {
+      recordHistory();
+      node.collapsed = false;
+      lastFocusId = node.id;
+      render();
+    }
 
   } else if (e.key === 'ArrowUp') {
     e.preventDefault();
@@ -1608,7 +1681,7 @@ function handleKeyDown(e, node, textEl, noteEl) {
   } else if (e.key === 'Escape') {
     if (selAnchorId) { clearSelection(); }
 
-  } else if (e.key === 'ArrowRight' && (e.metaKey || e.ctrlKey)) {
+  } else if (e.key === 'ArrowRight' && (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey) {
     // Cmd/Ctrl+→: 親ノードを折りたたむ
     const res = findNode(node.id, currentRoot);
     if (res && res.parent && res.parent !== currentRoot) {
@@ -1620,11 +1693,83 @@ function handleKeyDown(e, node, textEl, noteEl) {
       render();
     }
 
+  } else if (e.key === 'ArrowRight' && e.altKey && !e.shiftKey) {
+    // Alt+→: ズームイン
+    e.preventDefault();
+    const path = getPathToNode(node.id);
+    if (path) { state.currentPath = path; render(); }
+
+  } else if (e.key === 'ArrowLeft' && e.altKey && !e.shiftKey) {
+    // Alt+←: ズームアウト
+    e.preventDefault();
+    if (state.currentPath.length > 0) { state.currentPath.pop(); render(); }
+
+  } else if (e.key === ' ' && e.ctrlKey && !e.isComposing) {
+    // Ctrl+Space: 展開・たたむ（トグル）
+    e.preventDefault();
+    if (node.children.length > 0) {
+      recordHistory();
+      node.collapsed = !node.collapsed;
+      lastFocusId = node.id;
+      render();
+    }
+
+  } else if (e.key === 'ArrowUp' && e.altKey && e.shiftKey) {
+    // Alt+Shift+↑: ノードを上に移動
+    e.preventDefault();
+    moveNodeUp(node, currentRoot);
+
+  } else if (e.key === 'ArrowDown' && e.altKey && e.shiftKey) {
+    // Alt+Shift+↓: ノードを下に移動
+    e.preventDefault();
+    moveNodeDown(node, currentRoot);
+
+  } else if (e.key === 'ArrowLeft' && e.altKey && e.shiftKey) {
+    // Alt+Shift+←: アウトデント
+    e.preventDefault();
+    recordHistory();
+    outdentNode(node, currentRoot);
+
+  } else if (e.key === 'ArrowRight' && e.altKey && e.shiftKey) {
+    // Alt+Shift+→: インデント
+    e.preventDefault();
+    recordHistory();
+    indentNode(node, currentRoot);
+
+  } else if (e.key === 'Backspace' && (e.metaKey || e.ctrlKey) && e.shiftKey) {
+    // Cmd/Ctrl+Shift+Backspace: ノード削除
+    e.preventDefault();
+    removeNode(node, currentRoot);
+
+  } else if (e.key === 'o' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+    // Cmd/Ctrl+O: 完了タスクを非表示・再表示
+    e.preventDefault();
+    toggleHideChecked();
+
+  } else if (e.key === 'b' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+    // Cmd/Ctrl+B: 太字
+    e.preventDefault();
+    wrapWithMarkdown(textEl, node, '**');
+
+  } else if (e.key === 'i' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+    // Cmd/Ctrl+I: 斜体
+    e.preventDefault();
+    wrapWithMarkdown(textEl, node, '*');
+
+  } else if (e.key === 'u' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+    // Cmd/Ctrl+U: 下線
+    e.preventDefault();
+    wrapWithMarkdown(textEl, node, '__');
+
   }
 }
 
 function handleNoteKeyDown(e, node, textEl, noteEl) {
   if (e.key === 'Escape') {
+    e.preventDefault();
+    textEl.focus();
+  } else if (e.key === 'Enter' && e.shiftKey && !e.isComposing) {
+    // Shift+Enter: テキストに戻る
     e.preventDefault();
     textEl.focus();
   }
@@ -1717,6 +1862,68 @@ function mergeWithPrev(node, textEl, currentRoot) {
   render();
 }
 
+function moveNodeUp(node, currentRoot) {
+  const res = findNode(node.id, currentRoot);
+  if (!res) return;
+  const { parent, index } = res;
+  if (index === 0) return;
+  recordHistory();
+  parent.children.splice(index, 1);
+  parent.children.splice(index - 1, 0, node);
+  lastFocusId = node.id;
+  render();
+}
+
+function moveNodeDown(node, currentRoot) {
+  const res = findNode(node.id, currentRoot);
+  if (!res) return;
+  const { parent, index } = res;
+  if (index >= parent.children.length - 1) return;
+  recordHistory();
+  parent.children.splice(index, 1);
+  parent.children.splice(index + 1, 0, node);
+  lastFocusId = node.id;
+  render();
+}
+
+let hideChecked = false;
+
+function toggleHideChecked() {
+  hideChecked = !hideChecked;
+  applySearch();
+  showToast(hideChecked ? '完了タスクを非表示にしました' : '完了タスクを表示しました');
+}
+
+function wrapWithMarkdown(textEl, node, marker) {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return;
+
+  const range = sel.getRangeAt(0);
+  const selectedText = range.toString();
+  const text = node.text;
+
+  if (selectedText) {
+    // 選択テキストの開始位置を計算
+    const pre = range.cloneRange();
+    pre.selectNodeContents(textEl);
+    pre.setEnd(range.startContainer, range.startOffset);
+    const selStart = pre.toString().length;
+    const selEnd = selStart + selectedText.length;
+
+    node.text = text.slice(0, selStart) + marker + selectedText + marker + text.slice(selEnd);
+    lastFocusId = node.id;
+    lastFocusOffset = selEnd + marker.length * 2;
+  } else {
+    // カーソル位置にマーカーを二重挿入してカーソルを中間に
+    const pos = getCursorPos(textEl);
+    node.text = text.slice(0, pos) + marker + marker + text.slice(pos);
+    lastFocusId = node.id;
+    lastFocusOffset = pos + marker.length;
+  }
+  recordHistory();
+  render();
+}
+
 function moveFocusPrev(node, currentRoot) {
   const flat = flatVisibleNodes(currentRoot);
   const idx = flat.findIndex(n => n.id === node.id);
@@ -1742,14 +1949,19 @@ function moveFocusNext(node, currentRoot) {
 function applySearch() {
   const q = searchQuery.trim().toLowerCase();
   if (!q) {
-    document.querySelectorAll('.node-item').forEach(el => el.classList.remove('search-hidden'));
+    document.querySelectorAll('.node-item').forEach(li => {
+      const id = li.dataset.id;
+      const n = findNode(id)?.node;
+      const isHiddenByChecked = hideChecked && n && n.checked === true;
+      li.classList.toggle('search-hidden', isHiddenByChecked);
+    });
     document.querySelectorAll('.node-text, .node-note').forEach(el => {
       const nodeId = el.dataset.nodeId;
       const node = nodeId ? findNode(nodeId)?.node : null;
       if (!node) return;
       if (el.classList.contains('node-text')) {
-        if (HAS_LINK_RE.test(node.text) && el.contentEditable !== 'true') {
-          renderMarkdownLinks(el, node.text);
+        if (HAS_INLINE_RE.test(node.text) && el.contentEditable !== 'true') {
+          renderInlineContent(el, node.text);
           el.contentEditable = 'false';
         } else if (el.contentEditable === 'true') {
           // 編集中はテキストのまま（触らない）
@@ -1784,7 +1996,9 @@ function applySearch() {
 
   document.querySelectorAll('.node-item').forEach(li => {
     const id = li.dataset.id;
-    if (!matchIds.has(id)) {
+    const n = findNode(id)?.node;
+    const isHiddenByChecked = hideChecked && n && n.checked === true;
+    if (!matchIds.has(id) || isHiddenByChecked) {
       li.classList.add('search-hidden');
     } else {
       li.classList.remove('search-hidden');
@@ -2084,6 +2298,12 @@ document.addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
     e.preventDefault();
     redo();
+    return;
+  }
+  // Cmd/Ctrl+? : ショートカット表示
+  if ((e.ctrlKey || e.metaKey) && e.key === '?') {
+    e.preventDefault();
+    document.getElementById('shortcuts-modal').style.display = '';
     return;
   }
   // Escape でズームアウト
