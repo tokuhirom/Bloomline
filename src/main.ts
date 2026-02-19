@@ -45,6 +45,12 @@ document.addEventListener('click', () => {
   document.getElementById('export-menu')!.classList.remove('open');
 });
 
+// ノードコピー以外の通常テキストコピーが発生したら、ノードクリップボードをクリア
+// （ノードコピー時は e.preventDefault() でこのイベントが発火しない）
+document.addEventListener('copy', () => {
+  store.clipboardNodes = null;
+});
+
 document.addEventListener('mouseup', () => {
   store.isDragging = false;
   store.dragAnchorId = null;
