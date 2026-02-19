@@ -1,4 +1,4 @@
-import type { AppState } from './types';
+import type { AppState, BloomlineNode } from './types';
 
 export const store: {
   state: AppState;
@@ -12,6 +12,9 @@ export const store: {
   dragAnchorId: string | null;
   dragNodeId: string | null;
   hideChecked: boolean;
+  clipboardNodes: BloomlineNode[] | null;
+  clipboardText: string | null;
+  clipboardIsCut: boolean;
 } = {
   state: null as unknown as AppState, // set in main.ts before any render
   lastFocusId: null,
@@ -24,4 +27,7 @@ export const store: {
   dragAnchorId: null,
   dragNodeId: null,
   hideChecked: false,
+  clipboardNodes: null,
+  clipboardText: null,
+  clipboardIsCut: false,
 };

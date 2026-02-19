@@ -1,5 +1,5 @@
 import { store } from './store';
-import { createNode } from './model';
+import { createNode, uuid } from './model';
 import {
   getCurrentRoot, findNode, flatVisibleNodes, getPathToNode,
 } from './nodeHelpers';
@@ -248,7 +248,63 @@ export function handleKeyDown(
   } else if (e.key === 'u' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
     e.preventDefault();
     wrapWithMarkdown(textEl, node, '__');
+
+  } else if (e.key === 'c' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+    const sel = getSelectionRange();
+    if (sel.length > 1) {
+      e.preventDefault();
+      store.clipboardNodes = sel.map(deepCloneNode);
+      store.clipboardText = nodesToText(sel);
+      store.clipboardIsCut = false;
+      copyToOsClipboard(store.clipboardText);
+      showToast(`${sel.length} 件をコピーしました`);
+    }
+
+  } else if (e.key === 'x' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+    const sel = getSelectionRange();
+    if (sel.length > 1) {
+      e.preventDefault();
+      store.clipboardNodes = sel.map(deepCloneNode);
+      store.clipboardText = nodesToText(sel);
+      store.clipboardIsCut = true;
+      copyToOsClipboard(store.clipboardText);
+      recordHistory();
+      const flat = flatVisibleNodes(currentRoot);
+      const lastFocus = flat.find(
+        n => !sel.find(s => s.id === n.id) &&
+             flat.indexOf(n) < flat.indexOf(sel[0])
+      ) || flat.find(n => !sel.find(s => s.id === n.id));
+      for (let i = sel.length - 1; i >= 0; i--) {
+        const res = findNode(sel[i].id, currentRoot);
+        if (res && !(res.parent === currentRoot && res.parent!.children.length === 1)) {
+          res.parent!.children.splice(res.index, 1);
+        }
+      }
+      clearSelection();
+      if (lastFocus) { store.lastFocusId = lastFocus.id; store.lastFocusOffset = lastFocus.text.length; }
+      _render?.();
+      showToast(`${store.clipboardNodes.length} 件をカットしました`);
+    }
   }
+}
+
+// ペーストイベント：OS クリップボードのテキストが自分がコピーしたものと一致する場合のみノードペースト
+export function handlePaste(e: ClipboardEvent, node: BloomlineNode): void {
+  if (!store.clipboardNodes || !store.clipboardText) return;
+  const pastedText = e.clipboardData?.getData('text') ?? '';
+  if (pastedText !== store.clipboardText) return;
+
+  e.preventDefault();
+  const currentRoot = getCurrentRoot();
+  const res = findNode(node.id, currentRoot);
+  if (!res) return;
+  recordHistory();
+  const newNodes = store.clipboardNodes.map(deepCloneNode);
+  res.parent!.children.splice(res.index + 1, 0, ...newNodes);
+  clearSelection();
+  store.lastFocusId = newNodes[0].id;
+  _render?.();
+  showToast(`${newNodes.length} 件をペーストしました`);
 }
 
 export function handleNoteKeyDown(
@@ -404,6 +460,26 @@ export function wrapWithMarkdown(textEl: HTMLElement, node: BloomlineNode, marke
   }
   recordHistory();
   _render?.();
+}
+
+export function deepCloneNode(node: BloomlineNode): BloomlineNode {
+  return {
+    ...node,
+    id: uuid(),
+    children: node.children.map(deepCloneNode),
+  };
+}
+
+export function nodesToText(nodes: BloomlineNode[], indent = 0): string {
+  return nodes.map(n => {
+    const line = '  '.repeat(indent) + n.text;
+    const children = nodesToText(n.children, indent + 1);
+    return children ? line + '\n' + children : line;
+  }).join('\n');
+}
+
+function copyToOsClipboard(text: string): void {
+  navigator.clipboard.writeText(text).catch(() => {});
 }
 
 export function moveFocusPrev(node: BloomlineNode, currentRoot: BloomlineNode): void {
