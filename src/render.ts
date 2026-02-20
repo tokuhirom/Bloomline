@@ -250,6 +250,25 @@ export function createNodeEl(node: BloomlineNode, depth: number): HTMLLIElement 
     }
   });
 
+  // テキスト右余白クリック時に編集モードに入りカーソルを末尾へ
+  mainRow.addEventListener('click', (e) => {
+    if (isCalendarDateNode) return;
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'A' || target.classList.contains('node-checkbox')) return;
+    if (target === textEl || textEl.contains(target)) return;
+    if (textEl.contentEditable === 'false') {
+      textEl.contentEditable = 'true';
+      showRawText(textEl, node.text);
+    }
+    textEl.focus();
+    const range = document.createRange();
+    range.selectNodeContents(textEl);
+    range.collapse(false);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+  });
+
   // 範囲選択（Shift+クリック & ドラッグ）
   row.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;

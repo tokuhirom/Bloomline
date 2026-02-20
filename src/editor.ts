@@ -16,6 +16,8 @@ export function initEditor(renderFn: () => void): void {
   _render = renderFn;
 }
 
+const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+
 export function handleKeyDown(
   e: KeyboardEvent,
   node: BloomlineNode,
@@ -23,6 +25,74 @@ export function handleKeyDown(
   noteEl: HTMLElement
 ): void {
   const currentRoot = getCurrentRoot();
+
+  // Mac Emacs-like keybindings (Ctrl のみ、Meta/Alt/Shift/IME 変換中は除外)
+  if (isMac && e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && !e.isComposing) {
+    if (e.key === 'b') {
+      e.preventDefault();
+      const pos = getCursorPos(textEl);
+      if (pos > 0) setCursorPos(textEl, pos - 1);
+      return;
+    } else if (e.key === 'f') {
+      e.preventDefault();
+      const pos = getCursorPos(textEl);
+      if (pos < textEl.textContent!.length) setCursorPos(textEl, pos + 1);
+      return;
+    } else if (e.key === 'a') {
+      e.preventDefault();
+      setCursorPos(textEl, 0);
+      return;
+    } else if (e.key === 'e') {
+      e.preventDefault();
+      setCursorPos(textEl, textEl.textContent!.length);
+      return;
+    } else if (e.key === 'p') {
+      e.preventDefault();
+      clearSelection();
+      moveFocusPrev(node, currentRoot);
+      return;
+    } else if (e.key === 'n') {
+      e.preventDefault();
+      clearSelection();
+      moveFocusNext(node, currentRoot);
+      return;
+    } else if (e.key === 'd') {
+      e.preventDefault();
+      const pos = getCursorPos(textEl);
+      const text = node.text;
+      if (pos < text.length) {
+        recordHistory();
+        node.text = text.slice(0, pos) + text.slice(pos + 1);
+        store.lastFocusId = node.id;
+        store.lastFocusOffset = pos;
+        _render?.();
+      }
+      return;
+    } else if (e.key === 'h') {
+      e.preventDefault();
+      const pos = getCursorPos(textEl);
+      const text = node.text;
+      if (pos > 0) {
+        recordHistory();
+        node.text = text.slice(0, pos - 1) + text.slice(pos);
+        store.lastFocusId = node.id;
+        store.lastFocusOffset = pos - 1;
+        _render?.();
+      }
+      return;
+    } else if (e.key === 'k') {
+      e.preventDefault();
+      const pos = getCursorPos(textEl);
+      if (pos < node.text.length) {
+        recordHistory();
+        node.text = node.text.slice(0, pos);
+        store.lastFocusId = node.id;
+        store.lastFocusOffset = pos;
+        _render?.();
+      }
+      return;
+    }
+  }
 
   if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !e.isComposing) {
     e.preventDefault();
@@ -237,15 +307,15 @@ export function handleKeyDown(
     e.preventDefault();
     toggleHideChecked();
 
-  } else if (e.key === 'b' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+  } else if (e.key === 'b' && (isMac ? e.metaKey : (e.metaKey || e.ctrlKey)) && !e.shiftKey) {
     e.preventDefault();
     wrapWithMarkdown(textEl, node, '**');
 
-  } else if (e.key === 'i' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+  } else if (e.key === 'i' && (isMac ? e.metaKey : (e.metaKey || e.ctrlKey)) && !e.shiftKey) {
     e.preventDefault();
     wrapWithMarkdown(textEl, node, '*');
 
-  } else if (e.key === 'u' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+  } else if (e.key === 'u' && (isMac ? e.metaKey : (e.metaKey || e.ctrlKey)) && !e.shiftKey) {
     e.preventDefault();
     wrapWithMarkdown(textEl, node, '__');
   }
@@ -406,13 +476,22 @@ export function wrapWithMarkdown(textEl: HTMLElement, node: BloomlineNode, marke
   _render?.();
 }
 
+function focusNodeText(el: HTMLElement, pos: 'start' | 'end'): void {
+  // contentEditable='false' の要素（URL等のインライン装飾中）は
+  // focus() が無効になるブラウザがあるため、先に 'true' にする
+  if (el.contentEditable === 'false') el.contentEditable = 'true';
+  el.focus();
+  const len = el.textContent!.length;
+  setCursorPos(el, pos === 'end' ? len : 0);
+}
+
 export function moveFocusPrev(node: BloomlineNode, currentRoot: BloomlineNode): void {
   const flat = flatVisibleNodes(currentRoot);
   const idx = flat.findIndex(n => n.id === node.id);
   if (idx <= 0) return;
   const prevNode = flat[idx - 1];
   const el = document.querySelector(`[data-id="${prevNode.id}"] .node-text`) as HTMLElement | null;
-  if (el) { el.focus(); setCursorPos(el, el.textContent!.length); }
+  if (el) focusNodeText(el, 'end');
 }
 
 export function moveFocusNext(node: BloomlineNode, currentRoot: BloomlineNode): void {
@@ -421,5 +500,5 @@ export function moveFocusNext(node: BloomlineNode, currentRoot: BloomlineNode): 
   if (idx < 0 || idx >= flat.length - 1) return;
   const nextNode = flat[idx + 1];
   const el = document.querySelector(`[data-id="${nextNode.id}"] .node-text`) as HTMLElement | null;
-  if (el) { el.focus(); setCursorPos(el, 0); }
+  if (el) focusNodeText(el, 'start');
 }
