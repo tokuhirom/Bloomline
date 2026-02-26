@@ -83,6 +83,24 @@ document.getElementById('file-import')!.addEventListener('change', (e) => {
   (e.target as HTMLInputElement).value = '';
 });
 
+// 検索ヒント
+const searchTip = document.createElement('div');
+searchTip.id = 'search-tip';
+searchTip.textContent = 'Shift+Enter でフラット検索';
+document.body.appendChild(searchTip);
+
+const searchBoxEl = document.getElementById('search-box') as HTMLInputElement;
+searchBoxEl.addEventListener('focus', () => {
+  if (isFlatSearchOpen()) return;
+  const rect = searchBoxEl.getBoundingClientRect();
+  searchTip.style.top = `${rect.bottom + 4}px`;
+  searchTip.style.left = `${rect.left}px`;
+  searchTip.classList.add('visible');
+});
+searchBoxEl.addEventListener('blur', () => {
+  searchTip.classList.remove('visible');
+});
+
 // 検索
 document.getElementById('search-box')!.addEventListener('input', (e) => {
   store.searchQuery = (e.target as HTMLInputElement).value;
@@ -98,6 +116,7 @@ document.getElementById('search-box')!.addEventListener('keydown', (e) => {
 
   if (e.key === 'Enter' && e.shiftKey && !e.isComposing) {
     e.preventDefault();
+    searchTip.classList.remove('visible');
     openFlatSearch(store.searchQuery);
     return;
   }
