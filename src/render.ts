@@ -170,6 +170,21 @@ function showNodeMenu(node: BloomlineNode, anchorEl: HTMLElement): void {
       action: () => showMoveToModal(node),
     },
     {
+      label: node.note ? 'ノートを編集' : 'ノートを追加',
+      action: () => {
+        const noteEl = document.querySelector(`[data-id="${node.id}"] .node-note`) as HTMLElement | null;
+        if (!noteEl) return;
+        noteEl.classList.remove('hidden');
+        noteEl.focus();
+        const r = document.createRange();
+        r.selectNodeContents(noteEl);
+        r.collapse(false);
+        const s = window.getSelection()!;
+        s.removeAllRanges();
+        s.addRange(r);
+      },
+    },
+    {
       label: 'お気に入りに追加',
       action: () => {
         if (store.state.pinnedItems.includes(node.id)) {
