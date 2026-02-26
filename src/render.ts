@@ -253,7 +253,28 @@ function updateToggleBtn(li: HTMLElement, node: BloomlineNode): void {
   }
 }
 
+// ===== ブラウザ履歴との同期 =====
+
+let _lastHistoryPath = '';
+let _suppressHistoryPush = false;
+
+/** popstate 処理中に render() を呼ぶ直前に呼び出す。次の render で pushState を抑制する。 */
+export function suppressNextHistoryPush(): void {
+  _suppressHistoryPush = true;
+}
+
 export function render(): void {
+  const pathKey = JSON.stringify(store.state.currentPath);
+  if (!_suppressHistoryPush && pathKey !== _lastHistoryPath) {
+    if (_lastHistoryPath === '') {
+      history.replaceState({ currentPath: [...store.state.currentPath] }, '');
+    } else {
+      history.pushState({ currentPath: [...store.state.currentPath] }, '');
+    }
+  }
+  _lastHistoryPath = pathKey;
+  _suppressHistoryPush = false;
+
   const currentRoot = getCurrentRoot();
   renderBreadcrumb(currentRoot);
   renderNodes(currentRoot);

@@ -1,7 +1,7 @@
 import './style.css';
 import { store } from './store';
 import { loadState, saveState, createNode, initModel } from './model';
-import { render, renderBreadcrumb, initNodeMenu } from './render';
+import { render, renderBreadcrumb, initNodeMenu, suppressNextHistoryPush } from './render';
 import { renderSidebar, toggleSidebar, initSidebar, toggleHomeSection, addNewTopLevelNode } from './sidebar';
 import { initEditor } from './editor';
 import { initHistory, recordHistory, undo, redo } from './history';
@@ -162,6 +162,15 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.key === 'Escape' && store.state.currentPath.length > 0) {
     store.state.currentPath.pop();
+    render();
+  }
+});
+
+// ブラウザの戻る / 進むボタン
+window.addEventListener('popstate', (e) => {
+  if (e.state && Array.isArray(e.state.currentPath)) {
+    store.state.currentPath = e.state.currentPath;
+    suppressNextHistoryPush();
     render();
   }
 });
