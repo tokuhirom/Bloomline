@@ -239,6 +239,14 @@ export function handleKeyDown(
       _render?.();
     }
 
+  } else if (e.key === 'ArrowUp' && e.shiftKey && (e.altKey || e.metaKey)) {
+    e.preventDefault();
+    moveNodeUp(node, currentRoot);
+
+  } else if (e.key === 'ArrowDown' && e.shiftKey && (e.altKey || e.metaKey)) {
+    e.preventDefault();
+    moveNodeDown(node, currentRoot);
+
   } else if (e.key === 'ArrowUp') {
     e.preventDefault();
     clearSelection();
@@ -280,14 +288,6 @@ export function handleKeyDown(
       store.lastFocusId = node.id;
       _render?.();
     }
-
-  } else if (e.key === 'ArrowUp' && e.shiftKey && (e.altKey || e.metaKey)) {
-    e.preventDefault();
-    moveNodeUp(node, currentRoot);
-
-  } else if (e.key === 'ArrowDown' && e.shiftKey && (e.altKey || e.metaKey)) {
-    e.preventDefault();
-    moveNodeDown(node, currentRoot);
 
   } else if (e.key === 'ArrowLeft' && e.altKey && e.shiftKey) {
     e.preventDefault();
