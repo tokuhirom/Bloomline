@@ -2,7 +2,7 @@ import './style.css';
 import { store } from './store';
 import { loadState, saveState, createNode, initModel } from './model';
 import { render, renderBreadcrumb } from './render';
-import { renderSidebar, toggleSidebar, initSidebar } from './sidebar';
+import { renderSidebar, toggleSidebar, initSidebar, toggleHomeSection, addNewTopLevelNode } from './sidebar';
 import { initEditor } from './editor';
 import { initHistory, recordHistory, undo, redo } from './history';
 import { scheduleTextHistory } from './history';
@@ -33,7 +33,13 @@ initCalendar(render);
 // ============================================================
 
 // カレンダー
-document.getElementById('calendar-btn')!.addEventListener('click', openCalendar);
+document.getElementById('sidebar-calendar-btn')!.addEventListener('click', openCalendar);
+
+// サイドバーのホームセクション折りたたみ
+document.getElementById('sidebar-home-header')!.addEventListener('click', toggleHomeSection);
+
+// サイドバーの新規ノード追加
+document.getElementById('sidebar-add-btn')!.addEventListener('click', addNewTopLevelNode);
 
 // メニュー
 document.getElementById('menu-btn')!.addEventListener('click', (e) => {

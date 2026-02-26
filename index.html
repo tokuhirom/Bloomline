@@ -13,8 +13,7 @@
   <button id="sidebar-toggle" title="サイドバー">☰</button>
   <div id="breadcrumb"></div>
   <span id="file-info"></span>
-  <button id="calendar-btn" title="今日のページを開く">📅</button>
-  <input id="search-box" type="search" placeholder="検索..." autocomplete="off">
+<input id="search-box" type="search" placeholder="検索..." autocomplete="off">
   <button id="menu-btn" title="メニュー">⋯</button>
   <div id="export-menu">
     <div class="menu-item" data-action="open-file">
@@ -106,9 +105,24 @@
 
 <div id="app-layout">
   <div id="sidebar">
-    <div id="sidebar-header">お気に入り</div>
-    <div id="sidebar-drop-zone">
-      <div id="sidebar-empty">● をここにドロップ</div>
+    <div id="sidebar-calendar-section">
+      <button id="sidebar-calendar-btn">📅 今日のカレンダー</button>
+    </div>
+    <div id="sidebar-favorites-section">
+      <div id="sidebar-header">お気に入り</div>
+      <div id="sidebar-drop-zone">
+        <div id="sidebar-empty">● をここにドロップ</div>
+      </div>
+    </div>
+    <div id="sidebar-home-section">
+      <div id="sidebar-home-header">
+        <span id="sidebar-home-toggle">▶</span>
+        <span>ホーム</span>
+      </div>
+      <div id="sidebar-home-items"></div>
+    </div>
+    <div id="sidebar-add-section">
+      <button id="sidebar-add-btn">＋ 新しいアイテム</button>
     </div>
   </div>
   <div id="main">

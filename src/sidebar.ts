@@ -1,15 +1,92 @@
 import { store } from './store';
 import { findNode, getPathToNode } from './nodeHelpers';
+import { createNode, saveState } from './model';
+import { recordHistory } from './history';
+import type { BloomlineNode } from './types';
 
 let _render: (() => void) | null = null;
 let _saveState: (() => void) | null = null;
 
 let sidebarVisible = true;
 let sidebarDragSrcIndex: number | null = null;
+let homeExpanded = true;
 
 export function initSidebar(renderFn: () => void, saveStateFn: () => void): void {
   _render = renderFn;
   _saveState = saveStateFn;
+}
+
+const homeExpandedNodes = new Set<string>();
+
+function createHomeNodeEl(node: BloomlineNode, depth: number): HTMLElement {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'sidebar-tree-node';
+
+  const row = document.createElement('div');
+  row.className = 'sidebar-item sidebar-home-item';
+  row.style.paddingLeft = `${12 + depth * 14}px`;
+
+  const toggle = document.createElement('span');
+  toggle.className = 'sidebar-tree-toggle';
+  if (node.children.length > 0) {
+    const expanded = homeExpandedNodes.has(node.id);
+    toggle.textContent = expanded ? '▼' : '▶';
+    toggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (homeExpandedNodes.has(node.id)) {
+        homeExpandedNodes.delete(node.id);
+      } else {
+        homeExpandedNodes.add(node.id);
+      }
+      renderHomeItems();
+    });
+  }
+
+  const label = document.createElement('span');
+  label.className = 'sidebar-item-label';
+  label.textContent = node.text || '(無題)';
+  label.title = node.text || '(無題)';
+
+  row.appendChild(toggle);
+  row.appendChild(label);
+  row.addEventListener('click', () => {
+    const path = getPathToNode(node.id);
+    if (path) { store.state.currentPath = path; _render?.(); }
+  });
+  wrapper.appendChild(row);
+
+  if (node.children.length > 0 && homeExpandedNodes.has(node.id)) {
+    const childContainer = document.createElement('div');
+    node.children.forEach(child => {
+      childContainer.appendChild(createHomeNodeEl(child, depth + 1));
+    });
+    wrapper.appendChild(childContainer);
+  }
+
+  return wrapper;
+}
+
+function renderHomeItems(): void {
+  const container = document.getElementById('sidebar-home-items')!;
+  const toggle = document.getElementById('sidebar-home-toggle')!;
+  container.innerHTML = '';
+  toggle.textContent = homeExpanded ? '▼' : '▶';
+  container.classList.toggle('hidden', !homeExpanded);
+  if (!homeExpanded) return;
+
+  store.state.root.children.forEach(node => {
+    container.appendChild(createHomeNodeEl(node, 0));
+  });
+}
+
+export function addNewTopLevelNode(): void {
+  recordHistory();
+  const node = createNode('');
+  store.state.root.children.push(node);
+  store.lastFocusId = node.id;
+  store.state.currentPath = [];
+  _render?.();
+  saveState();
 }
 
 export function renderSidebar(): void {
@@ -100,6 +177,13 @@ export function renderSidebar(): void {
       zone.appendChild(item);
     });
   }
+
+  renderHomeItems();
+}
+
+export function toggleHomeSection(): void {
+  homeExpanded = !homeExpanded;
+  renderHomeItems();
 }
 
 export function toggleSidebar(): void {

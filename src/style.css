@@ -63,17 +63,6 @@ body {
 }
 #search-box:focus { border-color: var(--accent); }
 
-#calendar-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 18px;
-  color: var(--muted);
-  padding: 4px 8px;
-  border-radius: 4px;
-}
-#calendar-btn:hover { background: var(--hover-bg); color: var(--text); }
-
 #menu-btn {
   background: none;
   border: none;
@@ -396,10 +385,96 @@ mark {
   letter-spacing: 0.06em;
   white-space: nowrap;
 }
+#sidebar-calendar-section {
+  padding: 8px 8px 4px;
+}
+#sidebar-calendar-btn {
+  width: 100%;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#sidebar-calendar-btn:hover { background: var(--hover-bg); }
+
+#sidebar-favorites-section {
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 60px;
+  overflow: hidden;
+}
+
+#sidebar-home-section {
+  border-top: 1px solid var(--border);
+}
+#sidebar-home-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+#sidebar-home-header:hover { color: var(--text); }
+#sidebar-home-toggle {
+  font-size: 10px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+#sidebar-home-items {
+  padding-bottom: 4px;
+}
+#sidebar-home-items.hidden { display: none; }
+.sidebar-home-item { color: var(--text); }
+.sidebar-tree-toggle {
+  flex-shrink: 0;
+  width: 14px;
+  font-size: 9px;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1;
+}
+
+#sidebar-add-section {
+  border-top: 1px solid var(--border);
+  padding: 8px;
+  margin-top: auto;
+}
+#sidebar-add-btn {
+  width: 100%;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+}
+#sidebar-add-btn:hover { background: var(--hover-bg); color: var(--text); }
+
 #sidebar-drop-zone {
   flex: 1;
-  min-height: 60px;
-  padding: 4px 0 12px;
+  min-height: 40px;
+  padding: 4px 0 8px;
+  overflow-y: auto;
 }
 #sidebar-drop-zone.drag-over {
   background: #eff6ff;
