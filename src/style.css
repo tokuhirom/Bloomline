@@ -746,3 +746,14 @@ mark {
   pointer-events: none;
 }
 #toast.show { transform: translateX(-50%) translateY(0); }
+
+.append-node-btn {
+  padding: 4px 12px;
+  margin-top: 4px;
+  color: #aaa;
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-block;
+  border-radius: 4px;
+}
+.append-node-btn:hover { background: #f0f0f0; color: #555; }

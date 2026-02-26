@@ -1,6 +1,6 @@
 import { store } from './store';
 import { getCurrentRoot, getPathToNode, findNode, flatVisibleNodes, isDescendantOrSelf, moveNode, clearDropIndicators } from './nodeHelpers';
-import { saveState } from './model';
+import { saveState, createNode } from './model';
 import { renderSidebar } from './sidebar';
 import { applySearch } from './search';
 import { HAS_INLINE_RE, renderInlineContent, showRawText } from './inline';
@@ -333,6 +333,21 @@ export function renderNodes(currentRoot: BloomlineNode): void {
   currentRoot.children.forEach(child => {
     container.appendChild(createNodeEl(child, 0));
   });
+
+  // ノード末尾の「+ 追加」ボタン（子ノードがない or 全て collapsed 時に詰まるのを防ぐ）
+  const addBtn = document.createElement('div');
+  addBtn.className = 'append-node-btn';
+  addBtn.textContent = '+ 追加';
+  addBtn.addEventListener('click', () => {
+    recordHistory();
+    const newNode = createNode('');
+    currentRoot.children.push(newNode);
+    store.lastFocusId = newNode.id;
+    store.lastFocusOffset = 0;
+    render();
+  });
+  container.appendChild(addBtn);
+
   applySearch();
 
   if (store.lastFocusId) {
