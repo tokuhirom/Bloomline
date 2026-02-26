@@ -302,6 +302,11 @@ body.node-drag-selecting * { user-select: none !important; cursor: default !impo
   color: var(--muted);
 }
 
+/* checked ノードの子孫をグレーアウト */
+.node-item-checked > .node-children {
+  opacity: 0.4;
+}
+
 /* ===== INLINE LINK ===== */
 .node-text a.md-link {
   color: var(--accent);

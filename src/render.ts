@@ -366,7 +366,7 @@ export function renderNodes(currentRoot: BloomlineNode): void {
 
 export function createNodeEl(node: BloomlineNode, depth: number): HTMLLIElement {
   const li = document.createElement('li');
-  li.className = 'node-item';
+  li.className = 'node-item' + (node.checked ? ' node-item-checked' : '');
   li.dataset.id = node.id;
 
   const row = document.createElement('div');
