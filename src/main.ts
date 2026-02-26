@@ -9,6 +9,7 @@ import { scheduleTextHistory } from './history';
 import { initFileSystem, openFile, saveFileAs, hasFileSystemAccess, updateFileInfo, writeToFile } from './fileSystem';
 import { initExportImport, exportText, exportJson, exportOpml, importJson } from './exportImport';
 import { applySearch } from './search';
+import { toggleHideChecked } from './keyHandlers';
 import { getCurrentRoot } from './nodeHelpers';
 import { showToast } from './toast';
 import { initCalendar, openCalendar } from './calendar';
@@ -158,6 +159,11 @@ document.addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === '?') {
     e.preventDefault();
     (document.getElementById('shortcuts-modal') as HTMLElement).style.display = '';
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'o' && !e.shiftKey) {
+    e.preventDefault();
+    toggleHideChecked();
     return;
   }
   if (e.key === 'Escape' && store.state.currentPath.length > 0) {
