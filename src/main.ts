@@ -19,6 +19,7 @@ import { initCalendar, openCalendar } from './calendar';
 // ============================================================
 
 store.state = loadState();
+store.hideChecked = store.state.hideChecked ?? false;
 
 // コールバック注入
 initModel(writeToFile);

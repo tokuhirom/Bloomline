@@ -14,6 +14,7 @@ export interface AppState {
   title: string;
   pinnedItems: string[];
   version: number;
+  hideChecked?: boolean;
 }
 
 export type DropPosition = 'before' | 'after' | 'child';

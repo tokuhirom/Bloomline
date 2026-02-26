@@ -1,5 +1,5 @@
 import { store } from './store';
-import { createNode, uuid } from './model';
+import { createNode, uuid, saveState } from './model';
 import { findNode, flatVisibleNodes, getPathToNode } from './nodeHelpers';
 import { getCursorPos, setCursorPos } from './cursor';
 import { getSelectionRange, clearSelection, updateSelectionDisplay } from './selection';
@@ -424,6 +424,8 @@ export function cutSelectedNodes(
 
 export function toggleHideChecked(): void {
   store.hideChecked = !store.hideChecked;
+  store.state.hideChecked = store.hideChecked;
+  saveState();
   applySearch();
   showToast(store.hideChecked ? '完了タスクを非表示にしました' : '完了タスクを表示しました');
 }

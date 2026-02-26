@@ -29,6 +29,7 @@ export function migrateState(s: any): AppState {
   if (!s.title) s.title = 'Bloomline';
   if (!s.version) s.version = 1;
   if (!s.pinnedItems) s.pinnedItems = [];
+  if (s.hideChecked === undefined) s.hideChecked = false;
   ensureNodeFields(s.root);
   return s as AppState;
 }
