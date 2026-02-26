@@ -10,6 +10,7 @@ import { initFileSystem, openFile, saveFileAs, hasFileSystemAccess, updateFileIn
 import { initExportImport, exportText, exportJson, exportOpml, importJson } from './exportImport';
 import { applySearch } from './search';
 import { toggleHideChecked } from './keyHandlers';
+import { initFlatSearch, openFlatSearch, updateFlatSearch, closeFlatSearch, isFlatSearchOpen, handleFlatSearchKeydown } from './flatSearch';
 import { getCurrentRoot } from './nodeHelpers';
 import { showToast } from './toast';
 import { initCalendar, openCalendar } from './calendar';
@@ -30,6 +31,7 @@ initSidebar(render, saveState);
 initFileSystem(render, saveState);
 initExportImport(render, saveState);
 initCalendar(render);
+initFlatSearch(render);
 
 // ============================================================
 // イベントリスナー
@@ -84,7 +86,29 @@ document.getElementById('file-import')!.addEventListener('change', (e) => {
 // 検索
 document.getElementById('search-box')!.addEventListener('input', (e) => {
   store.searchQuery = (e.target as HTMLInputElement).value;
-  applySearch();
+  if (isFlatSearchOpen()) {
+    updateFlatSearch(store.searchQuery);
+  } else {
+    applySearch();
+  }
+});
+
+document.getElementById('search-box')!.addEventListener('keydown', (e) => {
+  if (isFlatSearchOpen() && handleFlatSearchKeydown(e)) return;
+
+  if (e.key === 'Enter' && e.shiftKey && !e.isComposing) {
+    e.preventDefault();
+    openFlatSearch(store.searchQuery);
+    return;
+  }
+  if (e.key === 'Escape') {
+    closeFlatSearch();
+    const sb = e.target as HTMLInputElement;
+    sb.value = '';
+    store.searchQuery = '';
+    applySearch();
+    sb.blur();
+  }
 });
 
 // ショートカットモーダル
@@ -156,6 +180,11 @@ document.addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
     e.preventDefault();
     redo();
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+    e.preventDefault();
+    (document.getElementById('search-box') as HTMLInputElement).focus();
     return;
   }
   if ((e.ctrlKey || e.metaKey) && e.key === '?') {
