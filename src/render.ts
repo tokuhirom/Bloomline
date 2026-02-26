@@ -7,9 +7,224 @@ import { HAS_INLINE_RE, renderInlineContent, showRawText } from './inline';
 import { refreshImagePreview } from './imagePreview';
 import { setCursorPos } from './cursor';
 import { updateSelectionDisplay, clearSelection, getSelectionRange } from './selection';
-import { handleKeyDown, handleNoteKeyDown } from './editor';
+import { handleKeyDown, handleNoteKeyDown, removeNode } from './editor';
 import { recordHistory, scheduleTextHistory } from './history';
+import { showToast } from './toast';
 import type { BloomlineNode } from './types';
+
+// ===== Move to モーダル =====
+function flatAllNodes(
+  node: BloomlineNode,
+  breadcrumb: string[] = []
+): { node: BloomlineNode; breadcrumb: string[] }[] {
+  const result: { node: BloomlineNode; breadcrumb: string[] }[] = [];
+  node.children.forEach(child => {
+    result.push({ node: child, breadcrumb });
+    result.push(...flatAllNodes(child, [...breadcrumb, child.text || '(無題)']));
+  });
+  return result;
+}
+
+function showMoveToModal(srcNode: BloomlineNode): void {
+  // backdrop
+  const backdrop = document.createElement('div');
+  backdrop.id = 'moveto-backdrop';
+
+  const dialog = document.createElement('div');
+  dialog.id = 'moveto-dialog';
+
+  const input = document.createElement('input');
+  input.id = 'moveto-input';
+  input.type = 'text';
+  input.placeholder = 'ノードを検索...';
+  input.autocomplete = 'off';
+  input.spellcheck = false;
+
+  const list = document.createElement('div');
+  list.id = 'moveto-list';
+
+  dialog.appendChild(input);
+  dialog.appendChild(list);
+  backdrop.appendChild(dialog);
+  document.body.appendChild(backdrop);
+
+  let selectedIndex = 0;
+  let currentResults: { node: BloomlineNode; breadcrumb: string[] }[] = [];
+
+  function close(): void {
+    backdrop.remove();
+  }
+
+  function commit(target: BloomlineNode): void {
+    if (target.id === srcNode.id) return;
+    if (isDescendantOrSelf(srcNode.id, target.id)) {
+      showToast('子孫ノードには移動できません');
+      return;
+    }
+    close();
+    recordHistory();
+    moveNode(srcNode.id, target.id, 'child');
+    render();
+  }
+
+  function renderList(query: string): void {
+    const all = flatAllNodes(store.state.root);
+    currentResults = query.trim()
+      ? all.filter(({ node }) => node.text.toLowerCase().includes(query.toLowerCase()) && node.id !== srcNode.id)
+      : all.filter(({ node }) => node.id !== srcNode.id);
+    selectedIndex = 0;
+    list.innerHTML = '';
+    if (currentResults.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'moveto-empty';
+      empty.textContent = '一致するノードがありません';
+      list.appendChild(empty);
+      return;
+    }
+    currentResults.forEach(({ node, breadcrumb }, i) => {
+      const item = document.createElement('div');
+      item.className = 'moveto-item' + (i === 0 ? ' selected' : '');
+      item.dataset.index = String(i);
+
+      const label = document.createElement('div');
+      label.className = 'moveto-item-label';
+      label.textContent = node.text || '(無題)';
+
+      const path = document.createElement('div');
+      path.className = 'moveto-item-path';
+      path.textContent = breadcrumb.length > 0 ? breadcrumb.join(' › ') : '(ルート)';
+
+      item.appendChild(label);
+      item.appendChild(path);
+      item.addEventListener('mousedown', e => { e.preventDefault(); commit(node); });
+      item.addEventListener('mousemove', () => {
+        list.querySelectorAll('.moveto-item').forEach(el => el.classList.remove('selected'));
+        item.classList.add('selected');
+        selectedIndex = i;
+      });
+      list.appendChild(item);
+    });
+  }
+
+  function updateSelection(): void {
+    list.querySelectorAll('.moveto-item').forEach((el, i) => {
+      el.classList.toggle('selected', i === selectedIndex);
+      if (i === selectedIndex) el.scrollIntoView({ block: 'nearest' });
+    });
+  }
+
+  input.addEventListener('input', () => renderList(input.value));
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { e.preventDefault(); close(); return; }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      selectedIndex = Math.min(selectedIndex + 1, currentResults.length - 1);
+      updateSelection();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      selectedIndex = Math.max(selectedIndex - 1, 0);
+      updateSelection();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (currentResults[selectedIndex]) commit(currentResults[selectedIndex].node);
+    }
+  });
+
+  backdrop.addEventListener('mousedown', e => { if (e.target === backdrop) close(); });
+
+  renderList('');
+  requestAnimationFrame(() => input.focus());
+}
+
+// ===== ノードコンテキストメニュー =====
+let nodeMenuEl: HTMLDivElement | null = null;
+
+export function initNodeMenu(): void {
+  nodeMenuEl = document.createElement('div');
+  nodeMenuEl.id = 'node-menu';
+  nodeMenuEl.style.display = 'none';
+  document.body.appendChild(nodeMenuEl);
+  document.addEventListener('click', hideNodeMenu);
+}
+
+function hideNodeMenu(): void {
+  if (nodeMenuEl) nodeMenuEl.style.display = 'none';
+}
+
+function showNodeMenu(node: BloomlineNode, anchorEl: HTMLElement): void {
+  if (!nodeMenuEl) return;
+  nodeMenuEl.innerHTML = '';
+
+  const items: { label: string; action: () => void }[] = [
+    {
+      label: 'コピー',
+      action: () => {
+        navigator.clipboard.writeText(node.text).then(() => {
+          showToast('コピーしました');
+        });
+      },
+    },
+    {
+      label: '移動する...',
+      action: () => showMoveToModal(node),
+    },
+    {
+      label: 'お気に入りに追加',
+      action: () => {
+        if (store.state.pinnedItems.includes(node.id)) {
+          showToast('すでに登録済みです');
+        } else {
+          store.state.pinnedItems.push(node.id);
+          saveState();
+          renderSidebar();
+          showToast('お気に入りに追加しました');
+        }
+      },
+    },
+    { label: 'sep', action: () => {} },
+    {
+      label: '削除',
+      action: () => {
+        const currentRoot = getCurrentRoot();
+        removeNode(node, currentRoot);
+      },
+    },
+  ];
+
+  items.forEach(item => {
+    if (item.label === 'sep') {
+      const sep = document.createElement('div');
+      sep.className = 'node-menu-sep';
+      nodeMenuEl!.appendChild(sep);
+      return;
+    }
+    const el = document.createElement('div');
+    el.className = 'node-menu-item' + (item.label === '削除' ? ' node-menu-item-danger' : '');
+    el.textContent = item.label;
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      hideNodeMenu();
+      item.action();
+    });
+    nodeMenuEl!.appendChild(el);
+  });
+
+  nodeMenuEl.style.display = '';
+  const rect = anchorEl.getBoundingClientRect();
+  let left = rect.left;
+  let top = rect.bottom + 4;
+  nodeMenuEl.style.left = `${left}px`;
+  nodeMenuEl.style.top = `${top}px`;
+
+  // 画面端からはみ出す場合の調整
+  requestAnimationFrame(() => {
+    if (!nodeMenuEl) return;
+    const mr = nodeMenuEl.getBoundingClientRect();
+    if (mr.right > window.innerWidth) nodeMenuEl.style.left = `${left - mr.width + anchorEl.offsetWidth}px`;
+    if (mr.bottom > window.innerHeight) nodeMenuEl.style.top = `${rect.top - mr.height - 4}px`;
+  });
+}
 
 function updateToggleBtn(li: HTMLElement, node: BloomlineNode): void {
   const toggle = li.querySelector('.toggle-btn') as HTMLElement | null;
@@ -104,6 +319,17 @@ export function createNodeEl(node: BloomlineNode, depth: number): HTMLLIElement 
 
   const row = document.createElement('div');
   row.className = 'node-row';
+
+  // actions menu button (⋯)
+  const menuBtn = document.createElement('span');
+  menuBtn.className = 'node-menu-btn';
+  menuBtn.textContent = '⋯';
+  menuBtn.title = 'アクション';
+  menuBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    showNodeMenu(node, menuBtn);
+  });
+  row.appendChild(menuBtn);
 
   // toggle button
   const toggle = document.createElement('span');

@@ -1,7 +1,7 @@
 import './style.css';
 import { store } from './store';
 import { loadState, saveState, createNode, initModel } from './model';
-import { render, renderBreadcrumb } from './render';
+import { render, renderBreadcrumb, initNodeMenu } from './render';
 import { renderSidebar, toggleSidebar, initSidebar, toggleHomeSection, addNewTopLevelNode } from './sidebar';
 import { initEditor } from './editor';
 import { initHistory, recordHistory, undo, redo } from './history';
@@ -23,6 +23,7 @@ store.state = loadState();
 initModel(writeToFile);
 initEditor(render);
 initHistory(render);
+initNodeMenu();
 initSidebar(render, saveState);
 initFileSystem(render, saveState);
 initExportImport(render, saveState);
