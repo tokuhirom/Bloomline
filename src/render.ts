@@ -7,7 +7,8 @@ import { HAS_INLINE_RE, renderInlineContent, showRawText } from './inline';
 import { refreshImagePreview } from './imagePreview';
 import { setCursorPos } from './cursor';
 import { updateSelectionDisplay, clearSelection, getSelectionRange } from './selection';
-import { handleKeyDown, handleNoteKeyDown, removeNode } from './editor';
+import { handleKeyDown, handleNoteKeyDown } from './editor';
+import { removeNode } from './keyHandlers';
 import { recordHistory, scheduleTextHistory } from './history';
 import { showToast } from './toast';
 import type { BloomlineNode } from './types';
@@ -202,7 +203,7 @@ function showNodeMenu(node: BloomlineNode, anchorEl: HTMLElement): void {
       label: '削除',
       action: () => {
         const currentRoot = getCurrentRoot();
-        removeNode(node, currentRoot);
+        removeNode(node, currentRoot, render);
       },
     },
   ];
