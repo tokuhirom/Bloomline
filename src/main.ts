@@ -53,6 +53,7 @@ document.addEventListener('click', () => {
   document.getElementById('export-menu')!.classList.remove('open');
 });
 
+
 document.addEventListener('mouseup', () => {
   store.isDragging = false;
   store.dragAnchorId = null;

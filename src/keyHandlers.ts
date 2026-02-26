@@ -1,5 +1,5 @@
 import { store } from './store';
-import { createNode } from './model';
+import { createNode, uuid } from './model';
 import { findNode, flatVisibleNodes, getPathToNode } from './nodeHelpers';
 import { getCursorPos, setCursorPos } from './cursor';
 import { getSelectionRange, clearSelection, updateSelectionDisplay } from './selection';
@@ -365,6 +365,61 @@ export function moveFocusNext(node: BloomlineNode, currentRoot: BloomlineNode): 
   if (el) focusNodeText(el, 'start');
 }
 
+// ===== Clipboard =====
+
+export function deepCloneNode(node: BloomlineNode): BloomlineNode {
+  return {
+    ...node,
+    id: uuid(),
+    children: node.children.map(deepCloneNode),
+  };
+}
+
+export function nodesToText(nodes: BloomlineNode[], indent = 0): string {
+  return nodes.map(n => {
+    const line = '  '.repeat(indent) + n.text;
+    const children = nodesToText(n.children, indent + 1);
+    return children ? line + '\n' + children : line;
+  }).join('\n');
+}
+
+function copyToOsClipboard(text: string): void {
+  navigator.clipboard.writeText(text).catch(() => {});
+}
+
+export function copySelectedNodes(sel: BloomlineNode[]): void {
+  store.clipboardNodes = sel.map(deepCloneNode);
+  store.clipboardText = nodesToText(sel);
+  store.clipboardIsCut = false;
+  copyToOsClipboard(store.clipboardText);
+}
+
+export function cutSelectedNodes(
+  sel: BloomlineNode[],
+  currentRoot: BloomlineNode,
+  render: () => void,
+): void {
+  store.clipboardNodes = sel.map(deepCloneNode);
+  store.clipboardText = nodesToText(sel);
+  store.clipboardIsCut = true;
+  copyToOsClipboard(store.clipboardText);
+  recordHistory();
+  const flat = flatVisibleNodes(currentRoot);
+  const lastFocus = flat.find(
+    n => !sel.find(s => s.id === n.id) &&
+         flat.indexOf(n) < flat.indexOf(sel[0])
+  ) || flat.find(n => !sel.find(s => s.id === n.id));
+  for (let i = sel.length - 1; i >= 0; i--) {
+    const res = findNode(sel[i].id, currentRoot);
+    if (res && !(res.parent === currentRoot && res.parent!.children.length === 1)) {
+      res.parent!.children.splice(res.index, 1);
+    }
+  }
+  clearSelection();
+  if (lastFocus) { store.lastFocusId = lastFocus.id; store.lastFocusOffset = lastFocus.text.length; }
+  render();
+}
+
 // ===== Misc =====
 
 export function toggleHideChecked(): void {
@@ -424,7 +479,8 @@ export type ActionName =
   | 'toggleCollapse'
   | 'outdentNodeAlt' | 'indentNodeAlt'
   | 'toggleHideChecked'
-  | 'wrapBold' | 'wrapItalic' | 'wrapUnderline';
+  | 'wrapBold' | 'wrapItalic' | 'wrapUnderline'
+  | 'copy' | 'cut';
 
 export interface KeyEventLike {
   key: string;
@@ -493,6 +549,8 @@ export function resolveAction(e: KeyEventLike, isMac: boolean): ActionName | nul
   if (key === 'b' && (isMac ? metaKey : (metaKey || ctrlKey)) && !shiftKey) return 'wrapBold';
   if (key === 'i' && (isMac ? metaKey : (metaKey || ctrlKey)) && !shiftKey) return 'wrapItalic';
   if (key === 'u' && (isMac ? metaKey : (metaKey || ctrlKey)) && !shiftKey) return 'wrapUnderline';
+  if (key === 'c' && (metaKey || ctrlKey) && !shiftKey) return 'copy';
+  if (key === 'x' && (metaKey || ctrlKey) && !shiftKey) return 'cut';
 
   return null;
 }

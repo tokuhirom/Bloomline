@@ -3,6 +3,7 @@ import { getCurrentRoot, findNode, flatVisibleNodes } from './nodeHelpers';
 import { isAtStart } from './cursor';
 import { getSelectionRange, clearSelection } from './selection';
 import { recordHistory } from './history';
+import { showToast } from './toast';
 import type { BloomlineNode } from './types';
 import {
   resolveAction,
@@ -17,6 +18,7 @@ import {
   zoomIn, zoomOut,
   moveFocusPrev, moveFocusNext,
   toggleHideChecked, wrapWithMarkdown,
+  deepCloneNode, copySelectedNodes, cutSelectedNodes,
 } from './keyHandlers';
 
 let _render: (() => void) | null = null;
@@ -132,6 +134,27 @@ export function handleKeyDown(
     return;
   }
 
+  // copy/cut: 複数選択時のみ動作（単一選択はブラウザのデフォルト動作に任せる）
+  if (action === 'copy') {
+    const sel = getSelectionRange();
+    if (sel.length > 1) {
+      e.preventDefault();
+      copySelectedNodes(sel);
+      showToast(`${sel.length} 件をコピーしました`);
+    }
+    return;
+  }
+
+  if (action === 'cut') {
+    const sel = getSelectionRange();
+    if (sel.length > 1) {
+      e.preventDefault();
+      cutSelectedNodes(sel, currentRoot, render);
+      showToast(`${store.clipboardNodes!.length} 件をカットしました`);
+    }
+    return;
+  }
+
   // 残りのアクションはすべて preventDefault してから実行
   e.preventDefault();
 
@@ -167,6 +190,25 @@ export function handleKeyDown(
     case 'wrapItalic':          wrapWithMarkdown(textEl, node, '*', render); break;
     case 'wrapUnderline':       wrapWithMarkdown(textEl, node, '__', render); break;
   }
+}
+
+// ペーストイベント：OS クリップボードのテキストが自分がコピーしたものと一致する場合のみノードペースト
+export function handlePaste(e: ClipboardEvent, node: BloomlineNode): void {
+  if (!store.clipboardNodes || !store.clipboardText) return;
+  const pastedText = e.clipboardData?.getData('text') ?? '';
+  if (pastedText !== store.clipboardText) return;
+
+  e.preventDefault();
+  const currentRoot = getCurrentRoot();
+  const res = findNode(node.id, currentRoot);
+  if (!res) return;
+  recordHistory();
+  const newNodes = store.clipboardNodes.map(deepCloneNode);
+  res.parent!.children.splice(res.index + 1, 0, ...newNodes);
+  clearSelection();
+  store.lastFocusId = newNodes[0].id;
+  _render?.();
+  showToast(`${newNodes.length} 件をペーストしました`);
 }
 
 export function handleNoteKeyDown(

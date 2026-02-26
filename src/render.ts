@@ -7,7 +7,7 @@ import { HAS_INLINE_RE, renderInlineContent, showRawText } from './inline';
 import { refreshImagePreview } from './imagePreview';
 import { setCursorPos } from './cursor';
 import { updateSelectionDisplay, clearSelection, getSelectionRange } from './selection';
-import { handleKeyDown, handleNoteKeyDown } from './editor';
+import { handleKeyDown, handleNoteKeyDown, handlePaste } from './editor';
 import { removeNode } from './keyHandlers';
 import { recordHistory, scheduleTextHistory } from './history';
 import { showToast } from './toast';
@@ -502,6 +502,7 @@ export function createNodeEl(node: BloomlineNode, depth: number): HTMLLIElement 
   });
 
   textEl.addEventListener('keydown', (e) => handleKeyDown(e, node, textEl, noteEl));
+  textEl.addEventListener('paste', (e) => handlePaste(e, node));
   noteEl.addEventListener('keydown', (e) => handleNoteKeyDown(e, node, textEl, noteEl));
 
   textEl.addEventListener('focus', () => {
