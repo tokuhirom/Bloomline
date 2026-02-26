@@ -1,14 +1,25 @@
 import { store } from './store';
-import { createNode, uuid } from './model';
-import {
-  getCurrentRoot, findNode, flatVisibleNodes, getPathToNode,
-} from './nodeHelpers';
-import { getCursorPos, setCursorPos, isAtStart, isAtEnd } from './cursor';
-import { getSelectionRange, clearSelection, updateSelectionDisplay } from './selection';
-import { recordHistory, scheduleTextHistory } from './history';
-import { applySearch } from './search';
+import { getCurrentRoot, findNode, flatVisibleNodes } from './nodeHelpers';
+import { isAtStart } from './cursor';
+import { getSelectionRange, clearSelection } from './selection';
+import { recordHistory } from './history';
 import { showToast } from './toast';
 import type { BloomlineNode } from './types';
+import {
+  resolveAction,
+  emacsBackward, emacsForward, emacsLineStart, emacsLineEnd,
+  emacsDeleteForward, emacsDeleteBackward, emacsDeleteToEol,
+  toggleChecked, openNote, splitNode,
+  indentNode, outdentNode,
+  removeNode, mergeWithPrev,
+  moveNodeUp, moveNodeDown,
+  expandSelectionUp, expandSelectionDown,
+  collapseNode, expandNode, toggleCollapse, collapseParent,
+  zoomIn, zoomOut,
+  moveFocusPrev, moveFocusNext,
+  toggleHideChecked, wrapWithMarkdown,
+  deepCloneNode, copySelectedNodes, cutSelectedNodes,
+} from './keyHandlers';
 
 let _render: (() => void) | null = null;
 
@@ -16,275 +27,168 @@ export function initEditor(renderFn: () => void): void {
   _render = renderFn;
 }
 
+const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+
+function handleBackspace(
+  e: KeyboardEvent,
+  node: BloomlineNode,
+  textEl: HTMLElement,
+  currentRoot: BloomlineNode,
+  render: () => void,
+): void {
+  const sel = getSelectionRange();
+  if (sel.length > 1) {
+    e.preventDefault();
+    recordHistory();
+    const flat = flatVisibleNodes(currentRoot);
+    const lastFocus = flat.find(
+      n => !sel.find(s => s.id === n.id) &&
+           flat.indexOf(n) < flat.indexOf(sel[0])
+    ) || flat.find(n => !sel.find(s => s.id === n.id));
+    for (let i = sel.length - 1; i >= 0; i--) {
+      const res = findNode(sel[i].id, currentRoot);
+      if (res && !(res.parent === currentRoot && res.parent!.children.length === 1)) {
+        res.parent!.children.splice(res.index, 1);
+      }
+    }
+    clearSelection();
+    if (lastFocus) { store.lastFocusId = lastFocus.id; store.lastFocusOffset = lastFocus.text.length; }
+    render();
+    return;
+  }
+
+  if (isAtStart(textEl)) {
+    if (node.checked !== undefined) {
+      e.preventDefault();
+      recordHistory();
+      node.checked = undefined;
+      store.lastFocusId = node.id;
+      store.lastFocusOffset = 0;
+      render();
+    } else if (node.text === '' && node.children.length === 0) {
+      e.preventDefault();
+      removeNode(node, currentRoot, render);
+    } else {
+      e.preventDefault();
+      mergeWithPrev(node, textEl, currentRoot, render);
+    }
+  }
+}
+
 export function handleKeyDown(
   e: KeyboardEvent,
   node: BloomlineNode,
   textEl: HTMLElement,
-  noteEl: HTMLElement
+  noteEl: HTMLElement,
 ): void {
+  const action = resolveAction(e, isMac);
+  if (action === null) return;
+
   const currentRoot = getCurrentRoot();
+  const render = _render!;
 
-  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !e.isComposing) {
-    e.preventDefault();
-    if (node.checked !== undefined) {
-      recordHistory();
-      node.checked = !node.checked;
-      store.lastFocusId = node.id;
-      _render?.();
-    }
+  // Backspace: 条件により preventDefault が変わるため個別処理
+  if (action === 'backspace') {
+    handleBackspace(e, node, textEl, currentRoot, render);
+    return;
+  }
 
-  } else if (e.key === 'Enter' && e.shiftKey && !e.isComposing) {
-    e.preventDefault();
-    noteEl.classList.remove('hidden');
-    noteEl.focus();
-    const r = document.createRange();
-    r.selectNodeContents(noteEl);
-    r.collapse(false);
-    const s = window.getSelection()!;
-    s.removeAllRanges();
-    s.addRange(r);
-
-  } else if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
-    e.preventDefault();
-    recordHistory();
-    const pos = getCursorPos(textEl);
-    const text = node.text;
-    const before = text.slice(0, pos);
-    const after = text.slice(pos);
-
-    node.text = before;
-    textEl.textContent = before;
-
-    const newNode = createNode(after, node.checked !== undefined ? false : undefined);
-
-    const res = findNode(node.id, currentRoot);
-    if (!res || !res.parent) return;
-    const { parent, index } = res;
-
-    if (node.children.length > 0 && !node.collapsed) {
-      node.children.unshift(newNode);
-    } else {
-      parent.children.splice(index + 1, 0, newNode);
-    }
-
-    store.lastFocusId = newNode.id;
-    store.lastFocusOffset = 0;
-    _render?.();
-
-  } else if (e.key === 'Tab' && !e.shiftKey) {
+  // Tab: 複数選択時はバッチ処理
+  if (action === 'indentNode') {
     e.preventDefault();
     recordHistory();
     const sel = getSelectionRange();
     if (sel.length > 1) {
-      for (let i = sel.length - 1; i >= 0; i--) indentNode(sel[i], currentRoot, true);
+      for (let i = sel.length - 1; i >= 0; i--) indentNode(sel[i], currentRoot, render, true);
       clearSelection();
-      _render?.();
+      render();
     } else {
-      indentNode(node, currentRoot);
+      indentNode(node, currentRoot, render);
     }
+    return;
+  }
 
-  } else if (e.key === 'Tab' && e.shiftKey) {
+  if (action === 'outdentNode') {
     e.preventDefault();
     recordHistory();
     const sel = getSelectionRange();
     if (sel.length > 1) {
-      sel.forEach(n => outdentNode(n, currentRoot, true));
+      sel.forEach(n => outdentNode(n, currentRoot, render, true));
       clearSelection();
-      _render?.();
+      render();
     } else {
-      outdentNode(node, currentRoot);
+      outdentNode(node, currentRoot, render);
     }
+    return;
+  }
 
-  } else if (e.key === 'Backspace') {
+  // collapseParent: 親が存在する場合のみ preventDefault
+  if (action === 'collapseParent') {
+    if (collapseParent(node, currentRoot, render)) e.preventDefault();
+    return;
+  }
+
+  // escape: 選択解除のみ（preventDefault しない）
+  if (action === 'escape') {
+    if (store.selAnchorId) clearSelection();
+    return;
+  }
+
+  // copy/cut: 複数選択時のみ動作（単一選択はブラウザのデフォルト動作に任せる）
+  if (action === 'copy') {
     const sel = getSelectionRange();
     if (sel.length > 1) {
       e.preventDefault();
-      recordHistory();
-      const flat = flatVisibleNodes(currentRoot);
-      const lastFocus = flat.find(
-        n => !sel.find(s => s.id === n.id) &&
-             flat.indexOf(n) < flat.indexOf(sel[0])
-      ) || flat.find(n => !sel.find(s => s.id === n.id));
-      for (let i = sel.length - 1; i >= 0; i--) {
-        const res = findNode(sel[i].id, currentRoot);
-        if (res && !(res.parent === currentRoot && res.parent!.children.length === 1)) {
-          res.parent!.children.splice(res.index, 1);
-        }
-      }
-      clearSelection();
-      if (lastFocus) { store.lastFocusId = lastFocus.id; store.lastFocusOffset = lastFocus.text.length; }
-      _render?.();
-    } else if (isAtStart(textEl)) {
-      if (node.checked !== undefined) {
-        e.preventDefault();
-        recordHistory();
-        node.checked = undefined;
-        store.lastFocusId = node.id;
-        store.lastFocusOffset = 0;
-        _render?.();
-      } else if (node.text === '' && node.children.length === 0) {
-        e.preventDefault();
-        removeNode(node, currentRoot);
-      } else if (isAtStart(textEl)) {
-        e.preventDefault();
-        mergeWithPrev(node, textEl, currentRoot);
-      }
-    }
-
-  } else if (e.key === 'ArrowUp' && e.shiftKey && !e.altKey) {
-    e.preventDefault();
-    const flat = flatVisibleNodes(currentRoot);
-    if (!store.selAnchorId) store.selAnchorId = node.id;
-    const focusId = store.selFocusId || node.id;
-    const idx = flat.findIndex(n => n.id === focusId);
-    if (idx > 0) store.selFocusId = flat[idx - 1].id;
-    store.suppressSelectionClear = true;
-    updateSelectionDisplay();
-
-  } else if (e.key === 'ArrowDown' && e.shiftKey && !e.altKey) {
-    e.preventDefault();
-    const flat = flatVisibleNodes(currentRoot);
-    if (!store.selAnchorId) store.selAnchorId = node.id;
-    const focusId = store.selFocusId || node.id;
-    const idx = flat.findIndex(n => n.id === focusId);
-    if (idx < flat.length - 1) store.selFocusId = flat[idx + 1].id;
-    store.suppressSelectionClear = true;
-    updateSelectionDisplay();
-
-  } else if (e.key === 'ArrowUp' && e.ctrlKey && !e.shiftKey && !e.altKey) {
-    e.preventDefault();
-    if (node.children.length > 0) {
-      recordHistory();
-      node.collapsed = true;
-      store.lastFocusId = node.id;
-      _render?.();
-    }
-
-  } else if (e.key === 'ArrowDown' && e.ctrlKey && !e.shiftKey && !e.altKey) {
-    e.preventDefault();
-    if (node.children.length > 0) {
-      recordHistory();
-      node.collapsed = false;
-      store.lastFocusId = node.id;
-      _render?.();
-    }
-
-  } else if (e.key === 'ArrowUp') {
-    e.preventDefault();
-    clearSelection();
-    moveFocusPrev(node, currentRoot);
-
-  } else if (e.key === 'ArrowDown') {
-    e.preventDefault();
-    clearSelection();
-    moveFocusNext(node, currentRoot);
-
-  } else if (e.key === 'Escape') {
-    if (store.selAnchorId) { clearSelection(); }
-
-  } else if (e.key === 'ArrowRight' && (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey) {
-    const res = findNode(node.id, currentRoot);
-    if (res && res.parent && res.parent !== currentRoot) {
-      e.preventDefault();
-      recordHistory();
-      res.parent.collapsed = true;
-      store.lastFocusId = res.parent.id;
-      store.lastFocusOffset = 0;
-      _render?.();
-    }
-
-  } else if (e.key === 'ArrowRight' && e.altKey && !e.shiftKey) {
-    e.preventDefault();
-    const path = getPathToNode(node.id);
-    if (path) { store.state.currentPath = path; _render?.(); }
-
-  } else if (e.key === 'ArrowLeft' && e.altKey && !e.shiftKey) {
-    e.preventDefault();
-    if (store.state.currentPath.length > 0) { store.state.currentPath.pop(); _render?.(); }
-
-  } else if (e.key === ' ' && e.ctrlKey && !e.isComposing) {
-    e.preventDefault();
-    if (node.children.length > 0) {
-      recordHistory();
-      node.collapsed = !node.collapsed;
-      store.lastFocusId = node.id;
-      _render?.();
-    }
-
-  } else if (e.key === 'ArrowUp' && e.altKey && e.shiftKey) {
-    e.preventDefault();
-    moveNodeUp(node, currentRoot);
-
-  } else if (e.key === 'ArrowDown' && e.altKey && e.shiftKey) {
-    e.preventDefault();
-    moveNodeDown(node, currentRoot);
-
-  } else if (e.key === 'ArrowLeft' && e.altKey && e.shiftKey) {
-    e.preventDefault();
-    recordHistory();
-    outdentNode(node, currentRoot);
-
-  } else if (e.key === 'ArrowRight' && e.altKey && e.shiftKey) {
-    e.preventDefault();
-    recordHistory();
-    indentNode(node, currentRoot);
-
-  } else if (e.key === 'Backspace' && (e.metaKey || e.ctrlKey) && e.shiftKey) {
-    e.preventDefault();
-    removeNode(node, currentRoot);
-
-  } else if (e.key === 'o' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
-    e.preventDefault();
-    toggleHideChecked();
-
-  } else if (e.key === 'b' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
-    e.preventDefault();
-    wrapWithMarkdown(textEl, node, '**');
-
-  } else if (e.key === 'i' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
-    e.preventDefault();
-    wrapWithMarkdown(textEl, node, '*');
-
-  } else if (e.key === 'u' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
-    e.preventDefault();
-    wrapWithMarkdown(textEl, node, '__');
-
-  } else if (e.key === 'c' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
-    const sel = getSelectionRange();
-    if (sel.length > 1) {
-      e.preventDefault();
-      store.clipboardNodes = sel.map(deepCloneNode);
-      store.clipboardText = nodesToText(sel);
-      store.clipboardIsCut = false;
-      copyToOsClipboard(store.clipboardText);
+      copySelectedNodes(sel);
       showToast(`${sel.length} 件をコピーしました`);
     }
+    return;
+  }
 
-  } else if (e.key === 'x' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+  if (action === 'cut') {
     const sel = getSelectionRange();
     if (sel.length > 1) {
       e.preventDefault();
-      store.clipboardNodes = sel.map(deepCloneNode);
-      store.clipboardText = nodesToText(sel);
-      store.clipboardIsCut = true;
-      copyToOsClipboard(store.clipboardText);
-      recordHistory();
-      const flat = flatVisibleNodes(currentRoot);
-      const lastFocus = flat.find(
-        n => !sel.find(s => s.id === n.id) &&
-             flat.indexOf(n) < flat.indexOf(sel[0])
-      ) || flat.find(n => !sel.find(s => s.id === n.id));
-      for (let i = sel.length - 1; i >= 0; i--) {
-        const res = findNode(sel[i].id, currentRoot);
-        if (res && !(res.parent === currentRoot && res.parent!.children.length === 1)) {
-          res.parent!.children.splice(res.index, 1);
-        }
-      }
-      clearSelection();
-      if (lastFocus) { store.lastFocusId = lastFocus.id; store.lastFocusOffset = lastFocus.text.length; }
-      _render?.();
-      showToast(`${store.clipboardNodes.length} 件をカットしました`);
+      cutSelectedNodes(sel, currentRoot, render);
+      showToast(`${store.clipboardNodes!.length} 件をカットしました`);
     }
+    return;
+  }
+
+  // 残りのアクションはすべて preventDefault してから実行
+  e.preventDefault();
+
+  switch (action) {
+    case 'emacsBackward':       emacsBackward(textEl); break;
+    case 'emacsForward':        emacsForward(textEl); break;
+    case 'emacsLineStart':      emacsLineStart(textEl); break;
+    case 'emacsLineEnd':        emacsLineEnd(textEl); break;
+    case 'emacsFocusPrev':      clearSelection(); moveFocusPrev(node, currentRoot); break;
+    case 'emacsFocusNext':      clearSelection(); moveFocusNext(node, currentRoot); break;
+    case 'emacsDeleteForward':  emacsDeleteForward(node, textEl, render); break;
+    case 'emacsDeleteBackward': emacsDeleteBackward(node, textEl, render); break;
+    case 'emacsDeleteToEol':    emacsDeleteToEol(node, textEl, render); break;
+    case 'toggleChecked':       toggleChecked(node, render); break;
+    case 'openNote':            openNote(noteEl); break;
+    case 'splitNode':           splitNode(node, textEl, currentRoot, render); break;
+    case 'deleteNode':          removeNode(node, currentRoot, render); break;
+    case 'expandSelectionUp':   expandSelectionUp(node, currentRoot); break;
+    case 'expandSelectionDown': expandSelectionDown(node, currentRoot); break;
+    case 'collapseNode':        collapseNode(node, render); break;
+    case 'expandNode':          expandNode(node, render); break;
+    case 'moveNodeUp':          moveNodeUp(node, currentRoot, render); break;
+    case 'moveNodeDown':        moveNodeDown(node, currentRoot, render); break;
+    case 'focusPrev':           clearSelection(); moveFocusPrev(node, currentRoot); break;
+    case 'focusNext':           clearSelection(); moveFocusNext(node, currentRoot); break;
+    case 'zoomIn':              zoomIn(node, render); break;
+    case 'zoomOut':             zoomOut(render); break;
+    case 'toggleCollapse':      toggleCollapse(node, render); break;
+    case 'indentNodeAlt':       recordHistory(); indentNode(node, currentRoot, render); break;
+    case 'outdentNodeAlt':      recordHistory(); outdentNode(node, currentRoot, render); break;
+    case 'toggleHideChecked':   toggleHideChecked(); break;
+    case 'wrapBold':            wrapWithMarkdown(textEl, node, '**', render); break;
+    case 'wrapItalic':          wrapWithMarkdown(textEl, node, '*', render); break;
+    case 'wrapUnderline':       wrapWithMarkdown(textEl, node, '__', render); break;
   }
 }
 
@@ -311,7 +215,7 @@ export function handleNoteKeyDown(
   e: KeyboardEvent,
   _node: BloomlineNode,
   textEl: HTMLElement,
-  _noteEl: HTMLElement
+  _noteEl: HTMLElement,
 ): void {
   if (e.key === 'Escape') {
     e.preventDefault();
@@ -320,182 +224,4 @@ export function handleNoteKeyDown(
     e.preventDefault();
     textEl.focus();
   }
-}
-
-export function indentNode(node: BloomlineNode, currentRoot: BloomlineNode, skipRender = false): void {
-  const res = findNode(node.id, currentRoot);
-  if (!res) return;
-  const { parent, index } = res;
-  if (index === 0) return;
-  if (!skipRender) recordHistory();
-
-  const prevSibling = parent!.children[index - 1];
-  parent!.children.splice(index, 1);
-  if (prevSibling.collapsed) prevSibling.collapsed = false;
-  prevSibling.children.push(node);
-
-  store.lastFocusId = node.id;
-  if (!skipRender) _render?.();
-}
-
-export function outdentNode(node: BloomlineNode, currentRoot: BloomlineNode, skipRender = false): void {
-  const res = findNode(node.id, currentRoot);
-  if (!res) return;
-  const { parent, index } = res;
-  if (!skipRender) recordHistory();
-
-  const parentRes = parent === currentRoot ? null : findNode(parent!.id, currentRoot);
-  if (!parentRes && parent !== currentRoot) return;
-
-  const grandParent = parentRes ? parentRes.parent : null;
-  const parentIndex = parentRes ? parentRes.index : null;
-
-  if (!grandParent) return;
-
-  parent!.children.splice(index, 1);
-  const afterSiblings = parent!.children.splice(index);
-  node.children.push(...afterSiblings);
-  grandParent.children.splice(parentIndex! + 1, 0, node);
-
-  store.lastFocusId = node.id;
-  if (!skipRender) _render?.();
-}
-
-export function removeNode(node: BloomlineNode, currentRoot: BloomlineNode): void {
-  const res = findNode(node.id, currentRoot);
-  if (!res) return;
-  const { parent, index } = res;
-
-  if (parent === currentRoot && parent!.children.length === 1) return;
-  recordHistory();
-
-  const flat = flatVisibleNodes(currentRoot);
-  const nodeIndex = flat.findIndex(n => n.id === node.id);
-  const prevNode = flat[nodeIndex - 1] || flat[nodeIndex + 1];
-
-  parent!.children.splice(index, 1);
-  if (prevNode) {
-    store.lastFocusId = prevNode.id;
-    store.lastFocusOffset = prevNode.text.length;
-  }
-  _render?.();
-}
-
-export function mergeWithPrev(node: BloomlineNode, _textEl: HTMLElement, currentRoot: BloomlineNode): void {
-  recordHistory();
-  const flat = flatVisibleNodes(currentRoot);
-  const idx = flat.findIndex(n => n.id === node.id);
-  if (idx <= 0) return;
-
-  const prevNode = flat[idx - 1];
-  const prevLen = prevNode.text.length;
-  const mergedText = prevNode.text + node.text;
-  prevNode.text = mergedText;
-
-  node.children.forEach(c => prevNode.children.push(c));
-
-  const res = findNode(node.id, currentRoot);
-  if (res) {
-    res.parent!.children.splice(res.index, 1);
-  }
-
-  store.lastFocusId = prevNode.id;
-  store.lastFocusOffset = prevLen;
-  _render?.();
-}
-
-export function moveNodeUp(node: BloomlineNode, currentRoot: BloomlineNode): void {
-  const res = findNode(node.id, currentRoot);
-  if (!res) return;
-  const { parent, index } = res;
-  if (index === 0) return;
-  recordHistory();
-  parent!.children.splice(index, 1);
-  parent!.children.splice(index - 1, 0, node);
-  store.lastFocusId = node.id;
-  _render?.();
-}
-
-export function moveNodeDown(node: BloomlineNode, currentRoot: BloomlineNode): void {
-  const res = findNode(node.id, currentRoot);
-  if (!res) return;
-  const { parent, index } = res;
-  if (index >= parent!.children.length - 1) return;
-  recordHistory();
-  parent!.children.splice(index, 1);
-  parent!.children.splice(index + 1, 0, node);
-  store.lastFocusId = node.id;
-  _render?.();
-}
-
-export function toggleHideChecked(): void {
-  store.hideChecked = !store.hideChecked;
-  applySearch();
-  showToast(store.hideChecked ? '完了タスクを非表示にしました' : '完了タスクを表示しました');
-}
-
-export function wrapWithMarkdown(textEl: HTMLElement, node: BloomlineNode, marker: string): void {
-  const sel = window.getSelection();
-  if (!sel || sel.rangeCount === 0) return;
-
-  const range = sel.getRangeAt(0);
-  const selectedText = range.toString();
-  const text = node.text;
-
-  if (selectedText) {
-    const pre = range.cloneRange();
-    pre.selectNodeContents(textEl);
-    pre.setEnd(range.startContainer, range.startOffset);
-    const selStart = pre.toString().length;
-    const selEnd = selStart + selectedText.length;
-
-    node.text = text.slice(0, selStart) + marker + selectedText + marker + text.slice(selEnd);
-    store.lastFocusId = node.id;
-    store.lastFocusOffset = selEnd + marker.length * 2;
-  } else {
-    const pos = getCursorPos(textEl);
-    node.text = text.slice(0, pos) + marker + marker + text.slice(pos);
-    store.lastFocusId = node.id;
-    store.lastFocusOffset = pos + marker.length;
-  }
-  recordHistory();
-  _render?.();
-}
-
-export function deepCloneNode(node: BloomlineNode): BloomlineNode {
-  return {
-    ...node,
-    id: uuid(),
-    children: node.children.map(deepCloneNode),
-  };
-}
-
-export function nodesToText(nodes: BloomlineNode[], indent = 0): string {
-  return nodes.map(n => {
-    const line = '  '.repeat(indent) + n.text;
-    const children = nodesToText(n.children, indent + 1);
-    return children ? line + '\n' + children : line;
-  }).join('\n');
-}
-
-function copyToOsClipboard(text: string): void {
-  navigator.clipboard.writeText(text).catch(() => {});
-}
-
-export function moveFocusPrev(node: BloomlineNode, currentRoot: BloomlineNode): void {
-  const flat = flatVisibleNodes(currentRoot);
-  const idx = flat.findIndex(n => n.id === node.id);
-  if (idx <= 0) return;
-  const prevNode = flat[idx - 1];
-  const el = document.querySelector(`[data-id="${prevNode.id}"] .node-text`) as HTMLElement | null;
-  if (el) { el.focus(); setCursorPos(el, el.textContent!.length); }
-}
-
-export function moveFocusNext(node: BloomlineNode, currentRoot: BloomlineNode): void {
-  const flat = flatVisibleNodes(currentRoot);
-  const idx = flat.findIndex(n => n.id === node.id);
-  if (idx < 0 || idx >= flat.length - 1) return;
-  const nextNode = flat[idx + 1];
-  const el = document.querySelector(`[data-id="${nextNode.id}"] .node-text`) as HTMLElement | null;
-  if (el) { el.focus(); setCursorPos(el, 0); }
 }

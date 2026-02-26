@@ -1,4 +1,5 @@
 import { store } from './store';
+import { uuid } from './model';
 import type { BloomlineNode, DropPosition } from './types';
 
 export function getCurrentRoot(): BloomlineNode {
@@ -11,8 +12,8 @@ export function getCurrentRoot(): BloomlineNode {
   return node;
 }
 
-export function isDescendantOrSelf(srcId: string, targetId: string): boolean {
-  const res = findNode(srcId);
+export function isDescendantOrSelf(srcId: string, targetId: string, root = store.state.root): boolean {
+  const res = findNode(srcId, root);
   if (!res) return false;
   function check(n: BloomlineNode): boolean {
     if (n.id === targetId) return true;
@@ -22,15 +23,14 @@ export function isDescendantOrSelf(srcId: string, targetId: string): boolean {
 }
 
 // moveNode does NOT call render(); the caller must do so
-export function moveNode(srcId: string, targetId: string, position: DropPosition): void {
-  const currentRoot = getCurrentRoot();
-  const srcRes = findNode(srcId, currentRoot);
+export function moveNode(srcId: string, targetId: string, position: DropPosition, root = store.state.root): void {
+  const srcRes = findNode(srcId, root);
   if (!srcRes) return;
   const srcNode = srcRes.node;
 
   srcRes.parent!.children.splice(srcRes.index, 1);
 
-  const tgtRes = findNode(targetId, currentRoot);
+  const tgtRes = findNode(targetId, root);
   if (!tgtRes) return;
 
   if (position === 'child') {
@@ -71,6 +71,18 @@ export function findNode(
     if (res) return res;
   }
   return null;
+}
+
+export function cloneNode(node: BloomlineNode): BloomlineNode {
+  return {
+    id: uuid(),
+    text: node.text,
+    note: node.note,
+    checked: node.checked,
+    collapsed: node.collapsed,
+    calendarType: node.calendarType,
+    children: node.children.map(cloneNode),
+  };
 }
 
 export function flatVisibleNodes(root: BloomlineNode): BloomlineNode[] {

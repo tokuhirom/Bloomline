@@ -1,14 +1,15 @@
 import './style.css';
 import { store } from './store';
 import { loadState, saveState, createNode, initModel } from './model';
-import { render, renderBreadcrumb } from './render';
-import { renderSidebar, toggleSidebar, initSidebar } from './sidebar';
+import { render, renderBreadcrumb, initNodeMenu, suppressNextHistoryPush } from './render';
+import { renderSidebar, toggleSidebar, initSidebar, toggleHomeSection, addNewTopLevelNode } from './sidebar';
 import { initEditor } from './editor';
 import { initHistory, recordHistory, undo, redo } from './history';
 import { scheduleTextHistory } from './history';
 import { initFileSystem, openFile, saveFileAs, hasFileSystemAccess, updateFileInfo, writeToFile } from './fileSystem';
 import { initExportImport, exportText, exportJson, exportOpml, importJson } from './exportImport';
 import { applySearch } from './search';
+import { toggleHideChecked } from './keyHandlers';
 import { getCurrentRoot } from './nodeHelpers';
 import { showToast } from './toast';
 import { initCalendar, openCalendar } from './calendar';
@@ -23,6 +24,7 @@ store.state = loadState();
 initModel(writeToFile);
 initEditor(render);
 initHistory(render);
+initNodeMenu();
 initSidebar(render, saveState);
 initFileSystem(render, saveState);
 initExportImport(render, saveState);
@@ -33,7 +35,13 @@ initCalendar(render);
 // ============================================================
 
 // カレンダー
-document.getElementById('calendar-btn')!.addEventListener('click', openCalendar);
+document.getElementById('sidebar-calendar-btn')!.addEventListener('click', openCalendar);
+
+// サイドバーのホームセクション折りたたみ
+document.getElementById('sidebar-home-header')!.addEventListener('click', toggleHomeSection);
+
+// サイドバーの新規ノード追加
+document.getElementById('sidebar-add-btn')!.addEventListener('click', addNewTopLevelNode);
 
 // メニュー
 document.getElementById('menu-btn')!.addEventListener('click', (e) => {
@@ -154,8 +162,22 @@ document.addEventListener('keydown', (e) => {
     (document.getElementById('shortcuts-modal') as HTMLElement).style.display = '';
     return;
   }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'o' && !e.shiftKey) {
+    e.preventDefault();
+    toggleHideChecked();
+    return;
+  }
   if (e.key === 'Escape' && store.state.currentPath.length > 0) {
     store.state.currentPath.pop();
+    render();
+  }
+});
+
+// ブラウザの戻る / 進むボタン
+window.addEventListener('popstate', (e) => {
+  if (e.state && Array.isArray(e.state.currentPath)) {
+    store.state.currentPath = e.state.currentPath;
+    suppressNextHistoryPush();
     render();
   }
 });
