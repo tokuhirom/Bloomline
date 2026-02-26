@@ -201,7 +201,7 @@ export function handleKeyDown(
       }
     }
 
-  } else if (e.key === 'ArrowUp' && e.shiftKey && !e.altKey) {
+  } else if (e.key === 'ArrowUp' && e.shiftKey && !e.altKey && !e.metaKey) {
     e.preventDefault();
     const flat = flatVisibleNodes(currentRoot);
     if (!store.selAnchorId) store.selAnchorId = node.id;
@@ -211,7 +211,7 @@ export function handleKeyDown(
     store.suppressSelectionClear = true;
     updateSelectionDisplay();
 
-  } else if (e.key === 'ArrowDown' && e.shiftKey && !e.altKey) {
+  } else if (e.key === 'ArrowDown' && e.shiftKey && !e.altKey && !e.metaKey) {
     e.preventDefault();
     const flat = flatVisibleNodes(currentRoot);
     if (!store.selAnchorId) store.selAnchorId = node.id;
