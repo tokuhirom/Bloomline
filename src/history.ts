@@ -1,6 +1,6 @@
-import { store } from './store';
-import { saveState } from './model';
-import { showToast } from './toast';
+import { store } from "./store";
+import { saveState } from "./model";
+import { showToast } from "./toast";
 
 const MAX_UNDO = 100;
 let undoStack: any[] = [];
@@ -15,16 +15,21 @@ export function initHistory(renderFn: () => void): void {
 }
 
 function snapshotForHistory() {
-  return JSON.parse(JSON.stringify({
-    root: store.state.root,
-    currentPath: [...store.state.currentPath],
-    title: store.state.title
-  }));
+  return JSON.parse(
+    JSON.stringify({
+      root: store.state.root,
+      currentPath: [...store.state.currentPath],
+      title: store.state.title,
+    }),
+  );
 }
 
 export function recordHistory(): void {
   if (undoInProgress) return;
-  if (textHistoryTimer) { clearTimeout(textHistoryTimer); textHistoryTimer = null; }
+  if (textHistoryTimer) {
+    clearTimeout(textHistoryTimer);
+    textHistoryTimer = null;
+  }
   undoStack = undoStack.slice(0, undoIdx + 1);
   undoStack.push(snapshotForHistory());
   if (undoStack.length > MAX_UNDO) undoStack.shift();
@@ -38,7 +43,11 @@ export function scheduleTextHistory(): void {
 }
 
 export function undo(): void {
-  if (textHistoryTimer) { clearTimeout(textHistoryTimer); textHistoryTimer = null; recordHistory(); }
+  if (textHistoryTimer) {
+    clearTimeout(textHistoryTimer);
+    textHistoryTimer = null;
+    recordHistory();
+  }
   if (undoIdx <= 0) return;
   undoIdx--;
   undoInProgress = true;
@@ -49,7 +58,7 @@ export function undo(): void {
   _render?.();
   saveState();
   undoInProgress = false;
-  showToast('元に戻しました');
+  showToast("元に戻しました");
 }
 
 export function redo(): void {
@@ -63,5 +72,5 @@ export function redo(): void {
   _render?.();
   saveState();
   undoInProgress = false;
-  showToast('やり直しました');
+  showToast("やり直しました");
 }

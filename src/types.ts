@@ -5,7 +5,7 @@ export interface BloomlineNode {
   children: BloomlineNode[];
   collapsed: boolean;
   checked?: boolean; // undefined = not a todo, false = unchecked, true = checked
-  calendarType?: 'root' | 'year' | 'month' | 'day'; // calendar hierarchy
+  calendarType?: "root" | "year" | "month" | "day"; // calendar hierarchy
 }
 
 export interface AppState {
@@ -17,4 +17,4 @@ export interface AppState {
   hideChecked?: boolean;
 }
 
-export type DropPosition = 'before' | 'after' | 'child';
+export type DropPosition = "before" | "after" | "child";

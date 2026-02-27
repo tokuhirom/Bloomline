@@ -1,4 +1,4 @@
-import type { AppState, BloomlineNode } from './types';
+import type { AppState, BloomlineNode } from "./types";
 
 export const store: {
   state: AppState;
@@ -19,7 +19,7 @@ export const store: {
   state: null as unknown as AppState, // set in main.ts before any render
   lastFocusId: null,
   lastFocusOffset: null,
-  searchQuery: '',
+  searchQuery: "",
   selAnchorId: null,
   selFocusId: null,
   suppressSelectionClear: false,

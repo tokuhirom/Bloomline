@@ -1,19 +1,39 @@
-import './style.css';
-import { store } from './store';
-import { loadState, saveState, createNode, initModel } from './model';
-import { render, renderBreadcrumb, initNodeMenu, suppressNextHistoryPush } from './render';
-import { renderSidebar, toggleSidebar, initSidebar, toggleHomeSection, addNewTopLevelNode } from './sidebar';
-import { initEditor } from './editor';
-import { initHistory, recordHistory, undo, redo } from './history';
-import { scheduleTextHistory } from './history';
-import { initFileSystem, openFile, saveFileAs, hasFileSystemAccess, updateFileInfo, writeToFile } from './fileSystem';
-import { initExportImport, exportText, exportJson, exportOpml, importJson } from './exportImport';
-import { applySearch } from './search';
-import { toggleHideChecked } from './keyHandlers';
-import { initFlatSearch, openFlatSearch, updateFlatSearch, closeFlatSearch, isFlatSearchOpen, handleFlatSearchKeydown } from './flatSearch';
-import { getCurrentRoot } from './nodeHelpers';
-import { showToast } from './toast';
-import { initCalendar, openCalendar } from './calendar';
+import "./style.css";
+import { store } from "./store";
+import { loadState, saveState, createNode, initModel } from "./model";
+import { render, renderBreadcrumb, initNodeMenu, suppressNextHistoryPush } from "./render";
+import {
+  renderSidebar,
+  toggleSidebar,
+  initSidebar,
+  toggleHomeSection,
+  addNewTopLevelNode,
+} from "./sidebar";
+import { initEditor } from "./editor";
+import { initHistory, recordHistory, undo, redo } from "./history";
+import { scheduleTextHistory } from "./history";
+import {
+  initFileSystem,
+  openFile,
+  saveFileAs,
+  hasFileSystemAccess,
+  updateFileInfo,
+  writeToFile,
+} from "./fileSystem";
+import { initExportImport, exportText, exportJson, exportOpml, importJson } from "./exportImport";
+import { applySearch } from "./search";
+import { toggleHideChecked } from "./keyHandlers";
+import {
+  initFlatSearch,
+  openFlatSearch,
+  updateFlatSearch,
+  closeFlatSearch,
+  isFlatSearchOpen,
+  handleFlatSearchKeydown,
+} from "./flatSearch";
+import { getCurrentRoot } from "./nodeHelpers";
+import { showToast } from "./toast";
+import { initCalendar, openCalendar } from "./calendar";
 
 // ============================================================
 // 初期化（最初にstateをロードする）
@@ -38,71 +58,71 @@ initFlatSearch(render);
 // ============================================================
 
 // カレンダー
-document.getElementById('sidebar-calendar-btn')!.addEventListener('click', openCalendar);
+document.getElementById("sidebar-calendar-btn")!.addEventListener("click", openCalendar);
 
 // サイドバーのホームセクション折りたたみ
-document.getElementById('sidebar-home-header')!.addEventListener('click', toggleHomeSection);
+document.getElementById("sidebar-home-header")!.addEventListener("click", toggleHomeSection);
 
 // サイドバーの新規ノード追加
-document.getElementById('sidebar-add-btn')!.addEventListener('click', addNewTopLevelNode);
+document.getElementById("sidebar-add-btn")!.addEventListener("click", addNewTopLevelNode);
 
 // メニュー
-document.getElementById('menu-btn')!.addEventListener('click', (e) => {
+document.getElementById("menu-btn")!.addEventListener("click", (e) => {
   e.stopPropagation();
-  document.getElementById('export-menu')!.classList.toggle('open');
+  document.getElementById("export-menu")!.classList.toggle("open");
 });
 
-document.addEventListener('click', () => {
-  document.getElementById('export-menu')!.classList.remove('open');
+document.addEventListener("click", () => {
+  document.getElementById("export-menu")!.classList.remove("open");
 });
 
-
-document.addEventListener('mouseup', () => {
+document.addEventListener("mouseup", () => {
   store.isDragging = false;
   store.dragAnchorId = null;
-  document.body.classList.remove('node-drag-selecting');
+  document.body.classList.remove("node-drag-selecting");
 });
 
-document.getElementById('export-menu')!.addEventListener('click', (e) => {
+document.getElementById("export-menu")!.addEventListener("click", (e) => {
   const action = (e.target as HTMLElement).dataset.action;
   if (!action) return;
-  document.getElementById('export-menu')!.classList.remove('open');
+  document.getElementById("export-menu")!.classList.remove("open");
 
-  if (action === 'open-file') openFile();
-  else if (action === 'save-file-as') saveFileAs();
-  else if (action === 'export-text') exportText();
-  else if (action === 'export-json') exportJson();
-  else if (action === 'export-opml') exportOpml();
-  else if (action === 'import-json') document.getElementById('file-import')!.click();
-  else if (action === 'shortcuts') (document.getElementById('shortcuts-modal') as HTMLElement).style.display = '';
+  if (action === "open-file") openFile();
+  else if (action === "save-file-as") saveFileAs();
+  else if (action === "export-text") exportText();
+  else if (action === "export-json") exportJson();
+  else if (action === "export-opml") exportOpml();
+  else if (action === "import-json") document.getElementById("file-import")!.click();
+  else if (action === "shortcuts")
+    (document.getElementById("shortcuts-modal") as HTMLElement).style.display = "";
 });
 
-document.getElementById('file-import')!.addEventListener('change', (e) => {
+document.getElementById("file-import")!.addEventListener("change", (e) => {
   const file = (e.target as HTMLInputElement).files![0];
   if (file) importJson(file);
-  (e.target as HTMLInputElement).value = '';
+  (e.target as HTMLInputElement).value = "";
 });
 
 // 検索ヒント
-const searchTip = document.createElement('div');
-searchTip.id = 'search-tip';
-searchTip.textContent = 'Shift+Enter でフラット検索';
+const searchTip = document.createElement("div");
+searchTip.id = "search-tip";
+searchTip.textContent = "Shift+Enter でフラット検索";
 document.body.appendChild(searchTip);
 
-const searchBoxEl = document.getElementById('search-box') as HTMLInputElement;
-searchBoxEl.addEventListener('focus', () => {
+const searchBoxEl = document.getElementById("search-box") as HTMLInputElement;
+searchBoxEl.addEventListener("focus", () => {
   if (isFlatSearchOpen()) return;
   const rect = searchBoxEl.getBoundingClientRect();
   searchTip.style.top = `${rect.bottom + 4}px`;
   searchTip.style.left = `${rect.left}px`;
-  searchTip.classList.add('visible');
+  searchTip.classList.add("visible");
 });
-searchBoxEl.addEventListener('blur', () => {
-  searchTip.classList.remove('visible');
+searchBoxEl.addEventListener("blur", () => {
+  searchTip.classList.remove("visible");
 });
 
 // 検索
-document.getElementById('search-box')!.addEventListener('input', (e) => {
+document.getElementById("search-box")!.addEventListener("input", (e) => {
   store.searchQuery = (e.target as HTMLInputElement).value;
   if (isFlatSearchOpen()) {
     updateFlatSearch(store.searchQuery);
@@ -111,20 +131,20 @@ document.getElementById('search-box')!.addEventListener('input', (e) => {
   }
 });
 
-document.getElementById('search-box')!.addEventListener('keydown', (e) => {
+document.getElementById("search-box")!.addEventListener("keydown", (e) => {
   if (isFlatSearchOpen() && handleFlatSearchKeydown(e)) return;
 
-  if (e.key === 'Enter' && e.shiftKey && !e.isComposing) {
+  if (e.key === "Enter" && e.shiftKey && !e.isComposing) {
     e.preventDefault();
-    searchTip.classList.remove('visible');
+    searchTip.classList.remove("visible");
     openFlatSearch(store.searchQuery);
     return;
   }
-  if (e.key === 'Escape') {
+  if (e.key === "Escape") {
     closeFlatSearch();
     const sb = e.target as HTMLInputElement;
-    sb.value = '';
-    store.searchQuery = '';
+    sb.value = "";
+    store.searchQuery = "";
     applySearch();
     sb.blur();
   }
@@ -132,86 +152,93 @@ document.getElementById('search-box')!.addEventListener('keydown', (e) => {
 
 // ショートカットモーダル
 function closeShortcuts(): void {
-  (document.getElementById('shortcuts-modal') as HTMLElement).style.display = 'none';
+  (document.getElementById("shortcuts-modal") as HTMLElement).style.display = "none";
 }
-document.getElementById('shortcuts-close')!.addEventListener('click', closeShortcuts);
-document.getElementById('shortcuts-backdrop')!.addEventListener('click', closeShortcuts);
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && (document.getElementById('shortcuts-modal') as HTMLElement).style.display === '') {
-    closeShortcuts();
-  }
-}, true);
+document.getElementById("shortcuts-close")!.addEventListener("click", closeShortcuts);
+document.getElementById("shortcuts-backdrop")!.addEventListener("click", closeShortcuts);
+document.addEventListener(
+  "keydown",
+  (e) => {
+    if (
+      e.key === "Escape" &&
+      (document.getElementById("shortcuts-modal") as HTMLElement).style.display === ""
+    ) {
+      closeShortcuts();
+    }
+  },
+  true,
+);
 
 // サイドバートグル
-document.getElementById('sidebar-toggle')!.addEventListener('click', toggleSidebar);
+document.getElementById("sidebar-toggle")!.addEventListener("click", toggleSidebar);
 
 // サイドバードロップゾーン
-const sidebarDropZone = document.getElementById('sidebar-drop-zone')!;
-sidebarDropZone.addEventListener('dragover', (e) => {
-  if (!e.dataTransfer!.types.includes('node-id')) return;
+const sidebarDropZone = document.getElementById("sidebar-drop-zone")!;
+sidebarDropZone.addEventListener("dragover", (e) => {
+  if (!e.dataTransfer!.types.includes("node-id")) return;
   e.preventDefault();
-  e.dataTransfer!.dropEffect = 'copy';
-  sidebarDropZone.classList.add('drag-over');
+  e.dataTransfer!.dropEffect = "copy";
+  sidebarDropZone.classList.add("drag-over");
 });
-sidebarDropZone.addEventListener('dragleave', (e) => {
+sidebarDropZone.addEventListener("dragleave", (e) => {
   if (!sidebarDropZone.contains(e.relatedTarget as Node)) {
-    sidebarDropZone.classList.remove('drag-over');
+    sidebarDropZone.classList.remove("drag-over");
   }
 });
-sidebarDropZone.addEventListener('drop', (e) => {
+sidebarDropZone.addEventListener("drop", (e) => {
   e.preventDefault();
-  sidebarDropZone.classList.remove('drag-over');
-  const nodeId = e.dataTransfer!.getData('node-id');
+  sidebarDropZone.classList.remove("drag-over");
+  const nodeId = e.dataTransfer!.getData("node-id");
   if (!nodeId) return;
   if (store.state.pinnedItems.includes(nodeId)) {
-    showToast('すでに登録済みです');
+    showToast("すでに登録済みです");
     return;
   }
   store.state.pinnedItems.push(nodeId);
   saveState();
   renderSidebar();
-  showToast('お気に入りに追加しました');
+  showToast("お気に入りに追加しました");
 });
 
 // ページタイトル編集
-const titleEl = document.getElementById('page-title')!;
-titleEl.addEventListener('input', () => {
+const titleEl = document.getElementById("page-title")!;
+titleEl.addEventListener("input", () => {
   store.state.title = titleEl.textContent!;
   scheduleTextHistory();
   saveState();
   renderBreadcrumb(getCurrentRoot());
 });
-titleEl.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.isComposing) {
+titleEl.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.isComposing) {
     e.preventDefault();
-    const firstText = document.querySelector('.node-text') as HTMLElement | null;
+    const firstText = document.querySelector(".node-text") as HTMLElement | null;
     if (firstText) firstText.focus();
   }
 });
 
 // グローバルキーボードショートカット
-document.addEventListener('keydown', (e) => {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
     e.preventDefault();
     undo();
     return;
   }
-  if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+  if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
     e.preventDefault();
     redo();
     return;
   }
-  if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+  if ((e.ctrlKey || e.metaKey) && e.key === "f") {
     e.preventDefault();
-    (document.getElementById('search-box') as HTMLInputElement).focus();
+    (document.getElementById("search-box") as HTMLInputElement).focus();
     return;
   }
-  if ((e.ctrlKey || e.metaKey) && e.key === '?') {
+  if ((e.ctrlKey || e.metaKey) && e.key === "?") {
     e.preventDefault();
-    (document.getElementById('shortcuts-modal') as HTMLElement).style.display = '';
+    (document.getElementById("shortcuts-modal") as HTMLElement).style.display = "";
     return;
   }
-  if ((e.ctrlKey || e.metaKey) && e.key === 'o' && !e.shiftKey) {
+  if ((e.ctrlKey || e.metaKey) && e.key === "o" && !e.shiftKey) {
     e.preventDefault();
     toggleHideChecked();
     return;
@@ -219,7 +246,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ブラウザの戻る / 進むボタン
-window.addEventListener('popstate', (e) => {
+window.addEventListener("popstate", (e) => {
   if (e.state && Array.isArray(e.state.currentPath)) {
     store.state.currentPath = e.state.currentPath;
     suppressNextHistoryPush();
@@ -233,10 +260,12 @@ window.addEventListener('popstate', (e) => {
 
 // File System Access API 非対応ブラウザでメニュー項目をグレーアウト
 if (!hasFileSystemAccess) {
-  document.querySelectorAll('[data-action="open-file"], [data-action="save-file-as"]').forEach(el => {
-    el.classList.add('disabled');
-    (el as HTMLElement).title = 'Chrome / Edge が必要です';
-  });
+  document
+    .querySelectorAll('[data-action="open-file"], [data-action="save-file-as"]')
+    .forEach((el) => {
+      el.classList.add("disabled");
+      (el as HTMLElement).title = "Chrome / Edge が必要です";
+    });
 }
 
 updateFileInfo();
@@ -244,7 +273,7 @@ render();
 renderSidebar();
 
 if (store.state.root.children.length === 0) {
-  store.state.root.children.push(createNode(''));
+  store.state.root.children.push(createNode(""));
   render();
 }
 

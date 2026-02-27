@@ -1,12 +1,12 @@
-import { store } from './store';
-import { createNode, uuid, saveState } from './model';
-import { findNode, flatVisibleNodes, getPathToNode } from './nodeHelpers';
-import { getCursorPos, setCursorPos } from './cursor';
-import { clearSelection, updateSelectionDisplay } from './selection';
-import { recordHistory } from './history';
-import { applySearch } from './search';
-import { showToast } from './toast';
-import type { BloomlineNode } from './types';
+import { store } from "./store";
+import { createNode, uuid, saveState } from "./model";
+import { findNode, flatVisibleNodes, getPathToNode } from "./nodeHelpers";
+import { getCursorPos, setCursorPos } from "./cursor";
+import { clearSelection, updateSelectionDisplay } from "./selection";
+import { recordHistory } from "./history";
+import { applySearch } from "./search";
+import { showToast } from "./toast";
+import type { BloomlineNode } from "./types";
 
 // ===== Cursor movement (DOM only, no render needed) =====
 
@@ -30,7 +30,11 @@ export function emacsLineEnd(textEl: HTMLElement): void {
 
 // ===== Emacs editing =====
 
-export function emacsDeleteForward(node: BloomlineNode, textEl: HTMLElement, render: () => void): void {
+export function emacsDeleteForward(
+  node: BloomlineNode,
+  textEl: HTMLElement,
+  render: () => void,
+): void {
   const pos = getCursorPos(textEl);
   const text = node.text;
   if (pos < text.length) {
@@ -42,7 +46,11 @@ export function emacsDeleteForward(node: BloomlineNode, textEl: HTMLElement, ren
   }
 }
 
-export function emacsDeleteBackward(node: BloomlineNode, textEl: HTMLElement, render: () => void): void {
+export function emacsDeleteBackward(
+  node: BloomlineNode,
+  textEl: HTMLElement,
+  render: () => void,
+): void {
   const pos = getCursorPos(textEl);
   const text = node.text;
   if (pos > 0) {
@@ -54,7 +62,11 @@ export function emacsDeleteBackward(node: BloomlineNode, textEl: HTMLElement, re
   }
 }
 
-export function emacsDeleteToEol(node: BloomlineNode, textEl: HTMLElement, render: () => void): void {
+export function emacsDeleteToEol(
+  node: BloomlineNode,
+  textEl: HTMLElement,
+  render: () => void,
+): void {
   const pos = getCursorPos(textEl);
   if (pos < node.text.length) {
     recordHistory();
@@ -77,7 +89,7 @@ export function toggleChecked(node: BloomlineNode, render: () => void): void {
 }
 
 export function openNote(noteEl: HTMLElement): void {
-  noteEl.classList.remove('hidden');
+  noteEl.classList.remove("hidden");
   noteEl.focus();
   const r = document.createRange();
   r.selectNodeContents(noteEl);
@@ -185,7 +197,7 @@ export function removeNode(
   recordHistory();
 
   const flat = flatVisibleNodes(currentRoot);
-  const nodeIndex = flat.findIndex(n => n.id === node.id);
+  const nodeIndex = flat.findIndex((n) => n.id === node.id);
   const prevNode = flat[nodeIndex - 1] || flat[nodeIndex + 1];
 
   parent!.children.splice(index, 1);
@@ -204,7 +216,7 @@ export function mergeWithPrev(
 ): void {
   recordHistory();
   const flat = flatVisibleNodes(currentRoot);
-  const idx = flat.findIndex(n => n.id === node.id);
+  const idx = flat.findIndex((n) => n.id === node.id);
   if (idx <= 0) return;
 
   const prevNode = flat[idx - 1];
@@ -212,7 +224,7 @@ export function mergeWithPrev(
   const mergedText = prevNode.text + node.text;
   prevNode.text = mergedText;
 
-  node.children.forEach(c => prevNode.children.push(c));
+  node.children.forEach((c) => prevNode.children.push(c));
 
   const res = findNode(node.id, currentRoot);
   if (res) {
@@ -264,7 +276,7 @@ export function expandSelectionUp(node: BloomlineNode, currentRoot: BloomlineNod
   const flat = flatVisibleNodes(currentRoot);
   if (!store.selAnchorId) store.selAnchorId = node.id;
   const focusId = store.selFocusId || node.id;
-  const idx = flat.findIndex(n => n.id === focusId);
+  const idx = flat.findIndex((n) => n.id === focusId);
   if (idx > 0) store.selFocusId = flat[idx - 1].id;
   store.suppressSelectionClear = true;
   updateSelectionDisplay();
@@ -274,7 +286,7 @@ export function expandSelectionDown(node: BloomlineNode, currentRoot: BloomlineN
   const flat = flatVisibleNodes(currentRoot);
   if (!store.selAnchorId) store.selAnchorId = node.id;
   const focusId = store.selFocusId || node.id;
-  const idx = flat.findIndex(n => n.id === focusId);
+  const idx = flat.findIndex((n) => n.id === focusId);
   if (idx < flat.length - 1) store.selFocusId = flat[idx + 1].id;
   store.suppressSelectionClear = true;
   updateSelectionDisplay();
@@ -331,38 +343,44 @@ export function collapseParent(
 
 export function zoomIn(node: BloomlineNode, render: () => void): void {
   const path = getPathToNode(node.id);
-  if (path) { store.state.currentPath = path; render(); }
+  if (path) {
+    store.state.currentPath = path;
+    render();
+  }
 }
 
 export function zoomOut(render: () => void): void {
-  if (store.state.currentPath.length > 0) { store.state.currentPath.pop(); render(); }
+  if (store.state.currentPath.length > 0) {
+    store.state.currentPath.pop();
+    render();
+  }
 }
 
 // ===== Focus movement =====
 
-function focusNodeText(el: HTMLElement, pos: 'start' | 'end'): void {
-  if (el.contentEditable === 'false') el.contentEditable = 'true';
+function focusNodeText(el: HTMLElement, pos: "start" | "end"): void {
+  if (el.contentEditable === "false") el.contentEditable = "true";
   el.focus();
   const len = el.textContent!.length;
-  setCursorPos(el, pos === 'end' ? len : 0);
+  setCursorPos(el, pos === "end" ? len : 0);
 }
 
 export function moveFocusPrev(node: BloomlineNode, currentRoot: BloomlineNode): void {
   const flat = flatVisibleNodes(currentRoot);
-  const idx = flat.findIndex(n => n.id === node.id);
+  const idx = flat.findIndex((n) => n.id === node.id);
   if (idx <= 0) return;
   const prevNode = flat[idx - 1];
   const el = document.querySelector(`[data-id="${prevNode.id}"] .node-text`) as HTMLElement | null;
-  if (el) focusNodeText(el, 'end');
+  if (el) focusNodeText(el, "end");
 }
 
 export function moveFocusNext(node: BloomlineNode, currentRoot: BloomlineNode): void {
   const flat = flatVisibleNodes(currentRoot);
-  const idx = flat.findIndex(n => n.id === node.id);
+  const idx = flat.findIndex((n) => n.id === node.id);
   if (idx < 0 || idx >= flat.length - 1) return;
   const nextNode = flat[idx + 1];
   const el = document.querySelector(`[data-id="${nextNode.id}"] .node-text`) as HTMLElement | null;
-  if (el) focusNodeText(el, 'start');
+  if (el) focusNodeText(el, "start");
 }
 
 // ===== Clipboard =====
@@ -376,11 +394,13 @@ export function deepCloneNode(node: BloomlineNode): BloomlineNode {
 }
 
 export function nodesToText(nodes: BloomlineNode[], indent = 0): string {
-  return nodes.map(n => {
-    const line = '  '.repeat(indent) + n.text;
-    const children = nodesToText(n.children, indent + 1);
-    return children ? line + '\n' + children : line;
-  }).join('\n');
+  return nodes
+    .map((n) => {
+      const line = "  ".repeat(indent) + n.text;
+      const children = nodesToText(n.children, indent + 1);
+      return children ? line + "\n" + children : line;
+    })
+    .join("\n");
 }
 
 function copyToOsClipboard(text: string): void {
@@ -405,10 +425,9 @@ export function cutSelectedNodes(
   copyToOsClipboard(store.clipboardText);
   recordHistory();
   const flat = flatVisibleNodes(currentRoot);
-  const lastFocus = flat.find(
-    n => !sel.find(s => s.id === n.id) &&
-         flat.indexOf(n) < flat.indexOf(sel[0])
-  ) || flat.find(n => !sel.find(s => s.id === n.id));
+  const lastFocus =
+    flat.find((n) => !sel.find((s) => s.id === n.id) && flat.indexOf(n) < flat.indexOf(sel[0])) ||
+    flat.find((n) => !sel.find((s) => s.id === n.id));
   for (let i = sel.length - 1; i >= 0; i--) {
     const res = findNode(sel[i].id, currentRoot);
     if (res && !(res.parent === currentRoot && res.parent!.children.length === 1)) {
@@ -416,7 +435,10 @@ export function cutSelectedNodes(
     }
   }
   clearSelection();
-  if (lastFocus) { store.lastFocusId = lastFocus.id; store.lastFocusOffset = lastFocus.text.length; }
+  if (lastFocus) {
+    store.lastFocusId = lastFocus.id;
+    store.lastFocusOffset = lastFocus.text.length;
+  }
   render();
 }
 
@@ -427,7 +449,7 @@ export function toggleHideChecked(): void {
   store.state.hideChecked = store.hideChecked;
   saveState();
   applySearch();
-  showToast(store.hideChecked ? '完了タスクを非表示にしました' : '完了タスクを表示しました');
+  showToast(store.hideChecked ? "完了タスクを非表示にしました" : "完了タスクを表示しました");
 }
 
 export function wrapWithMarkdown(
@@ -466,23 +488,43 @@ export function wrapWithMarkdown(
 // ===== Dispatch =====
 
 export type ActionName =
-  | 'emacsBackward' | 'emacsForward' | 'emacsLineStart' | 'emacsLineEnd'
-  | 'emacsFocusPrev' | 'emacsFocusNext'
-  | 'emacsDeleteForward' | 'emacsDeleteBackward' | 'emacsDeleteToEol'
-  | 'toggleChecked' | 'openNote' | 'splitNode'
-  | 'indentNode' | 'outdentNode'
-  | 'backspace' | 'deleteNode'
-  | 'expandSelectionUp' | 'expandSelectionDown'
-  | 'collapseNode' | 'expandNode'
-  | 'moveNodeUp' | 'moveNodeDown'
-  | 'focusPrev' | 'focusNext'
-  | 'escape'
-  | 'collapseParent' | 'zoomIn' | 'zoomOut'
-  | 'toggleCollapse'
-  | 'outdentNodeAlt' | 'indentNodeAlt'
-  | 'toggleHideChecked'
-  | 'wrapBold' | 'wrapItalic' | 'wrapUnderline'
-  | 'copy' | 'cut';
+  | "emacsBackward"
+  | "emacsForward"
+  | "emacsLineStart"
+  | "emacsLineEnd"
+  | "emacsFocusPrev"
+  | "emacsFocusNext"
+  | "emacsDeleteForward"
+  | "emacsDeleteBackward"
+  | "emacsDeleteToEol"
+  | "toggleChecked"
+  | "openNote"
+  | "splitNode"
+  | "indentNode"
+  | "outdentNode"
+  | "backspace"
+  | "deleteNode"
+  | "expandSelectionUp"
+  | "expandSelectionDown"
+  | "collapseNode"
+  | "expandNode"
+  | "moveNodeUp"
+  | "moveNodeDown"
+  | "focusPrev"
+  | "focusNext"
+  | "escape"
+  | "collapseParent"
+  | "zoomIn"
+  | "zoomOut"
+  | "toggleCollapse"
+  | "outdentNodeAlt"
+  | "indentNodeAlt"
+  | "toggleHideChecked"
+  | "wrapBold"
+  | "wrapItalic"
+  | "wrapUnderline"
+  | "copy"
+  | "cut";
 
 export interface KeyEventLike {
   key: string;
@@ -499,60 +541,67 @@ export interface KeyEventLike {
  * プレーンオブジェクトも受け取れるので node 環境でテスト可能。
  */
 export function resolveAction(e: KeyEventLike, isMac: boolean): ActionName | null {
-  const { key, ctrlKey = false, metaKey = false, altKey = false, shiftKey = false, isComposing = false } = e;
+  const {
+    key,
+    ctrlKey = false,
+    metaKey = false,
+    altKey = false,
+    shiftKey = false,
+    isComposing = false,
+  } = e;
 
   // Mac Emacs-like bindings (Ctrl のみ、Meta/Alt/Shift/IME 変換中は除外)
   if (isMac && ctrlKey && !metaKey && !altKey && !shiftKey && !isComposing) {
-    if (key === 'b') return 'emacsBackward';
-    if (key === 'f') return 'emacsForward';
-    if (key === 'a') return 'emacsLineStart';
-    if (key === 'e') return 'emacsLineEnd';
-    if (key === 'p') return 'emacsFocusPrev';
-    if (key === 'n') return 'emacsFocusNext';
-    if (key === 'd') return 'emacsDeleteForward';
-    if (key === 'h') return 'emacsDeleteBackward';
-    if (key === 'k') return 'emacsDeleteToEol';
+    if (key === "b") return "emacsBackward";
+    if (key === "f") return "emacsForward";
+    if (key === "a") return "emacsLineStart";
+    if (key === "e") return "emacsLineEnd";
+    if (key === "p") return "emacsFocusPrev";
+    if (key === "n") return "emacsFocusNext";
+    if (key === "d") return "emacsDeleteForward";
+    if (key === "h") return "emacsDeleteBackward";
+    if (key === "k") return "emacsDeleteToEol";
     // 未知のキーはフォールスルー（例: Ctrl+ArrowUp → collapseNode）
   }
 
-  if (key === 'Enter' && (metaKey || ctrlKey) && !isComposing) return 'toggleChecked';
-  if (key === 'Enter' && shiftKey && !isComposing)              return 'openNote';
-  if (key === 'Enter' && !shiftKey && !isComposing)             return 'splitNode';
+  if (key === "Enter" && (metaKey || ctrlKey) && !isComposing) return "toggleChecked";
+  if (key === "Enter" && shiftKey && !isComposing) return "openNote";
+  if (key === "Enter" && !shiftKey && !isComposing) return "splitNode";
 
-  if (key === 'Tab' && !shiftKey) return 'indentNode';
-  if (key === 'Tab' && shiftKey)  return 'outdentNode';
+  if (key === "Tab" && !shiftKey) return "indentNode";
+  if (key === "Tab" && shiftKey) return "outdentNode";
 
   // deleteNode は Backspace catch-all より先にチェック
-  if (key === 'Backspace' && (metaKey || ctrlKey) && shiftKey) return 'deleteNode';
-  if (key === 'Backspace') return 'backspace';
+  if (key === "Backspace" && (metaKey || ctrlKey) && shiftKey) return "deleteNode";
+  if (key === "Backspace") return "backspace";
 
   // ArrowUp/Down: 修飾キーが多いものを先にチェックして catch-all に落とさない
-  if (key === 'ArrowUp'   && shiftKey && (altKey || metaKey)) return 'moveNodeUp';
-  if (key === 'ArrowDown' && shiftKey && (altKey || metaKey)) return 'moveNodeDown';
-  if (key === 'ArrowUp'   && shiftKey && !altKey && !metaKey) return 'expandSelectionUp';
-  if (key === 'ArrowDown' && shiftKey && !altKey && !metaKey) return 'expandSelectionDown';
-  if (key === 'ArrowUp'   && ctrlKey  && !shiftKey && !altKey) return 'collapseNode';
-  if (key === 'ArrowDown' && ctrlKey  && !shiftKey && !altKey) return 'expandNode';
-  if (key === 'ArrowUp')   return 'focusPrev';
-  if (key === 'ArrowDown') return 'focusNext';
+  if (key === "ArrowUp" && shiftKey && (altKey || metaKey)) return "moveNodeUp";
+  if (key === "ArrowDown" && shiftKey && (altKey || metaKey)) return "moveNodeDown";
+  if (key === "ArrowUp" && shiftKey && !altKey && !metaKey) return "expandSelectionUp";
+  if (key === "ArrowDown" && shiftKey && !altKey && !metaKey) return "expandSelectionDown";
+  if (key === "ArrowUp" && ctrlKey && !shiftKey && !altKey) return "collapseNode";
+  if (key === "ArrowDown" && ctrlKey && !shiftKey && !altKey) return "expandNode";
+  if (key === "ArrowUp") return "focusPrev";
+  if (key === "ArrowDown") return "focusNext";
 
-  if (key === 'Escape') return 'escape';
+  if (key === "Escape") return "escape";
 
-  if (key === 'ArrowRight' && (metaKey || ctrlKey) && !altKey && !shiftKey) return 'collapseParent';
+  if (key === "ArrowRight" && (metaKey || ctrlKey) && !altKey && !shiftKey) return "collapseParent";
   // Alt+Shift+Arrow は Alt+Arrow より先にチェック
-  if (key === 'ArrowLeft'  && altKey && shiftKey)  return 'outdentNodeAlt';
-  if (key === 'ArrowRight' && altKey && shiftKey)  return 'indentNodeAlt';
-  if (key === 'ArrowRight' && altKey && !shiftKey) return 'zoomIn';
-  if (key === 'ArrowLeft'  && altKey && !shiftKey) return 'zoomOut';
+  if (key === "ArrowLeft" && altKey && shiftKey) return "outdentNodeAlt";
+  if (key === "ArrowRight" && altKey && shiftKey) return "indentNodeAlt";
+  if (key === "ArrowRight" && altKey && !shiftKey) return "zoomIn";
+  if (key === "ArrowLeft" && altKey && !shiftKey) return "zoomOut";
 
-  if (key === ' ' && ctrlKey && !isComposing) return 'toggleCollapse';
+  if (key === " " && ctrlKey && !isComposing) return "toggleCollapse";
 
-  if (key === 'o' && (metaKey || ctrlKey) && !shiftKey) return 'toggleHideChecked';
-  if (key === 'b' && (isMac ? metaKey : (metaKey || ctrlKey)) && !shiftKey) return 'wrapBold';
-  if (key === 'i' && (isMac ? metaKey : (metaKey || ctrlKey)) && !shiftKey) return 'wrapItalic';
-  if (key === 'u' && (isMac ? metaKey : (metaKey || ctrlKey)) && !shiftKey) return 'wrapUnderline';
-  if (key === 'c' && (metaKey || ctrlKey) && !shiftKey) return 'copy';
-  if (key === 'x' && (metaKey || ctrlKey) && !shiftKey) return 'cut';
+  if (key === "o" && (metaKey || ctrlKey) && !shiftKey) return "toggleHideChecked";
+  if (key === "b" && (isMac ? metaKey : metaKey || ctrlKey) && !shiftKey) return "wrapBold";
+  if (key === "i" && (isMac ? metaKey : metaKey || ctrlKey) && !shiftKey) return "wrapItalic";
+  if (key === "u" && (isMac ? metaKey : metaKey || ctrlKey) && !shiftKey) return "wrapUnderline";
+  if (key === "c" && (metaKey || ctrlKey) && !shiftKey) return "copy";
+  if (key === "x" && (metaKey || ctrlKey) && !shiftKey) return "cut";
 
   return null;
 }

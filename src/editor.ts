@@ -1,25 +1,44 @@
-import { store } from './store';
-import { getCurrentRoot, findNode, flatVisibleNodes } from './nodeHelpers';
-import { isAtStart } from './cursor';
-import { getSelectionRange, clearSelection } from './selection';
-import { recordHistory } from './history';
-import { showToast } from './toast';
-import type { BloomlineNode } from './types';
+import { store } from "./store";
+import { getCurrentRoot, findNode, flatVisibleNodes } from "./nodeHelpers";
+import { isAtStart } from "./cursor";
+import { getSelectionRange, clearSelection } from "./selection";
+import { recordHistory } from "./history";
+import { showToast } from "./toast";
+import type { BloomlineNode } from "./types";
 import {
   resolveAction,
-  emacsBackward, emacsForward, emacsLineStart, emacsLineEnd,
-  emacsDeleteForward, emacsDeleteBackward, emacsDeleteToEol,
-  toggleChecked, openNote, splitNode,
-  indentNode, outdentNode,
-  removeNode, mergeWithPrev,
-  moveNodeUp, moveNodeDown,
-  expandSelectionUp, expandSelectionDown,
-  collapseNode, expandNode, toggleCollapse, collapseParent,
-  zoomIn, zoomOut,
-  moveFocusPrev, moveFocusNext,
-  toggleHideChecked, wrapWithMarkdown,
-  deepCloneNode, copySelectedNodes, cutSelectedNodes,
-} from './keyHandlers';
+  emacsBackward,
+  emacsForward,
+  emacsLineStart,
+  emacsLineEnd,
+  emacsDeleteForward,
+  emacsDeleteBackward,
+  emacsDeleteToEol,
+  toggleChecked,
+  openNote,
+  splitNode,
+  indentNode,
+  outdentNode,
+  removeNode,
+  mergeWithPrev,
+  moveNodeUp,
+  moveNodeDown,
+  expandSelectionUp,
+  expandSelectionDown,
+  collapseNode,
+  expandNode,
+  toggleCollapse,
+  collapseParent,
+  zoomIn,
+  zoomOut,
+  moveFocusPrev,
+  moveFocusNext,
+  toggleHideChecked,
+  wrapWithMarkdown,
+  deepCloneNode,
+  copySelectedNodes,
+  cutSelectedNodes,
+} from "./keyHandlers";
 
 let _render: (() => void) | null = null;
 
@@ -41,10 +60,9 @@ function handleBackspace(
     e.preventDefault();
     recordHistory();
     const flat = flatVisibleNodes(currentRoot);
-    const lastFocus = flat.find(
-      n => !sel.find(s => s.id === n.id) &&
-           flat.indexOf(n) < flat.indexOf(sel[0])
-    ) || flat.find(n => !sel.find(s => s.id === n.id));
+    const lastFocus =
+      flat.find((n) => !sel.find((s) => s.id === n.id) && flat.indexOf(n) < flat.indexOf(sel[0])) ||
+      flat.find((n) => !sel.find((s) => s.id === n.id));
     for (let i = sel.length - 1; i >= 0; i--) {
       const res = findNode(sel[i].id, currentRoot);
       if (res && !(res.parent === currentRoot && res.parent!.children.length === 1)) {
@@ -52,7 +70,10 @@ function handleBackspace(
       }
     }
     clearSelection();
-    if (lastFocus) { store.lastFocusId = lastFocus.id; store.lastFocusOffset = lastFocus.text.length; }
+    if (lastFocus) {
+      store.lastFocusId = lastFocus.id;
+      store.lastFocusOffset = lastFocus.text.length;
+    }
     render();
     return;
   }
@@ -65,7 +86,7 @@ function handleBackspace(
       store.lastFocusId = node.id;
       store.lastFocusOffset = 0;
       render();
-    } else if (node.text === '' && node.children.length === 0) {
+    } else if (node.text === "" && node.children.length === 0) {
       e.preventDefault();
       removeNode(node, currentRoot, render);
     } else {
@@ -88,13 +109,13 @@ export function handleKeyDown(
   const render = _render!;
 
   // Backspace: 条件により preventDefault が変わるため個別処理
-  if (action === 'backspace') {
+  if (action === "backspace") {
     handleBackspace(e, node, textEl, currentRoot, render);
     return;
   }
 
   // Tab: 複数選択時はバッチ処理
-  if (action === 'indentNode') {
+  if (action === "indentNode") {
     e.preventDefault();
     recordHistory();
     const sel = getSelectionRange();
@@ -108,12 +129,12 @@ export function handleKeyDown(
     return;
   }
 
-  if (action === 'outdentNode') {
+  if (action === "outdentNode") {
     e.preventDefault();
     recordHistory();
     const sel = getSelectionRange();
     if (sel.length > 1) {
-      sel.forEach(n => outdentNode(n, currentRoot, render, true));
+      sel.forEach((n) => outdentNode(n, currentRoot, render, true));
       clearSelection();
       render();
     } else {
@@ -123,19 +144,19 @@ export function handleKeyDown(
   }
 
   // collapseParent: 親が存在する場合のみ preventDefault
-  if (action === 'collapseParent') {
+  if (action === "collapseParent") {
     if (collapseParent(node, currentRoot, render)) e.preventDefault();
     return;
   }
 
   // escape: 選択解除のみ（preventDefault しない）
-  if (action === 'escape') {
+  if (action === "escape") {
     if (store.selAnchorId) clearSelection();
     return;
   }
 
   // copy/cut: 複数選択時のみ動作（単一選択はブラウザのデフォルト動作に任せる）
-  if (action === 'copy') {
+  if (action === "copy") {
     const sel = getSelectionRange();
     if (sel.length > 1) {
       e.preventDefault();
@@ -145,7 +166,7 @@ export function handleKeyDown(
     return;
   }
 
-  if (action === 'cut') {
+  if (action === "cut") {
     const sel = getSelectionRange();
     if (sel.length > 1) {
       e.preventDefault();
@@ -159,43 +180,109 @@ export function handleKeyDown(
   e.preventDefault();
 
   switch (action) {
-    case 'emacsBackward':       emacsBackward(textEl); break;
-    case 'emacsForward':        emacsForward(textEl); break;
-    case 'emacsLineStart':      emacsLineStart(textEl); break;
-    case 'emacsLineEnd':        emacsLineEnd(textEl); break;
-    case 'emacsFocusPrev':      clearSelection(); moveFocusPrev(node, currentRoot); break;
-    case 'emacsFocusNext':      clearSelection(); moveFocusNext(node, currentRoot); break;
-    case 'emacsDeleteForward':  emacsDeleteForward(node, textEl, render); break;
-    case 'emacsDeleteBackward': emacsDeleteBackward(node, textEl, render); break;
-    case 'emacsDeleteToEol':    emacsDeleteToEol(node, textEl, render); break;
-    case 'toggleChecked':       toggleChecked(node, render); break;
-    case 'openNote':            openNote(noteEl); break;
-    case 'splitNode':           splitNode(node, textEl, currentRoot, render); break;
-    case 'deleteNode':          removeNode(node, currentRoot, render); break;
-    case 'expandSelectionUp':   expandSelectionUp(node, currentRoot); break;
-    case 'expandSelectionDown': expandSelectionDown(node, currentRoot); break;
-    case 'collapseNode':        collapseNode(node, render); break;
-    case 'expandNode':          expandNode(node, render); break;
-    case 'moveNodeUp':          moveNodeUp(node, currentRoot, render); break;
-    case 'moveNodeDown':        moveNodeDown(node, currentRoot, render); break;
-    case 'focusPrev':           clearSelection(); moveFocusPrev(node, currentRoot); break;
-    case 'focusNext':           clearSelection(); moveFocusNext(node, currentRoot); break;
-    case 'zoomIn':              zoomIn(node, render); break;
-    case 'zoomOut':             zoomOut(render); break;
-    case 'toggleCollapse':      toggleCollapse(node, render); break;
-    case 'indentNodeAlt':       recordHistory(); indentNode(node, currentRoot, render); break;
-    case 'outdentNodeAlt':      recordHistory(); outdentNode(node, currentRoot, render); break;
-    case 'toggleHideChecked':   toggleHideChecked(); break;
-    case 'wrapBold':            wrapWithMarkdown(textEl, node, '**', render); break;
-    case 'wrapItalic':          wrapWithMarkdown(textEl, node, '*', render); break;
-    case 'wrapUnderline':       wrapWithMarkdown(textEl, node, '__', render); break;
+    case "emacsBackward":
+      emacsBackward(textEl);
+      break;
+    case "emacsForward":
+      emacsForward(textEl);
+      break;
+    case "emacsLineStart":
+      emacsLineStart(textEl);
+      break;
+    case "emacsLineEnd":
+      emacsLineEnd(textEl);
+      break;
+    case "emacsFocusPrev":
+      clearSelection();
+      moveFocusPrev(node, currentRoot);
+      break;
+    case "emacsFocusNext":
+      clearSelection();
+      moveFocusNext(node, currentRoot);
+      break;
+    case "emacsDeleteForward":
+      emacsDeleteForward(node, textEl, render);
+      break;
+    case "emacsDeleteBackward":
+      emacsDeleteBackward(node, textEl, render);
+      break;
+    case "emacsDeleteToEol":
+      emacsDeleteToEol(node, textEl, render);
+      break;
+    case "toggleChecked":
+      toggleChecked(node, render);
+      break;
+    case "openNote":
+      openNote(noteEl);
+      break;
+    case "splitNode":
+      splitNode(node, textEl, currentRoot, render);
+      break;
+    case "deleteNode":
+      removeNode(node, currentRoot, render);
+      break;
+    case "expandSelectionUp":
+      expandSelectionUp(node, currentRoot);
+      break;
+    case "expandSelectionDown":
+      expandSelectionDown(node, currentRoot);
+      break;
+    case "collapseNode":
+      collapseNode(node, render);
+      break;
+    case "expandNode":
+      expandNode(node, render);
+      break;
+    case "moveNodeUp":
+      moveNodeUp(node, currentRoot, render);
+      break;
+    case "moveNodeDown":
+      moveNodeDown(node, currentRoot, render);
+      break;
+    case "focusPrev":
+      clearSelection();
+      moveFocusPrev(node, currentRoot);
+      break;
+    case "focusNext":
+      clearSelection();
+      moveFocusNext(node, currentRoot);
+      break;
+    case "zoomIn":
+      zoomIn(node, render);
+      break;
+    case "zoomOut":
+      zoomOut(render);
+      break;
+    case "toggleCollapse":
+      toggleCollapse(node, render);
+      break;
+    case "indentNodeAlt":
+      recordHistory();
+      indentNode(node, currentRoot, render);
+      break;
+    case "outdentNodeAlt":
+      recordHistory();
+      outdentNode(node, currentRoot, render);
+      break;
+    case "toggleHideChecked":
+      toggleHideChecked();
+      break;
+    case "wrapBold":
+      wrapWithMarkdown(textEl, node, "**", render);
+      break;
+    case "wrapItalic":
+      wrapWithMarkdown(textEl, node, "*", render);
+      break;
+    case "wrapUnderline":
+      wrapWithMarkdown(textEl, node, "__", render);
+      break;
   }
 }
 
 // ペーストイベント：OS クリップボードのテキストが自分がコピーしたものと一致する場合のみノードペースト
 export function handlePaste(e: ClipboardEvent, node: BloomlineNode): void {
   if (!store.clipboardNodes || !store.clipboardText) return;
-  const pastedText = e.clipboardData?.getData('text') ?? '';
+  const pastedText = e.clipboardData?.getData("text") ?? "";
   if (pastedText !== store.clipboardText) return;
 
   e.preventDefault();
@@ -217,10 +304,10 @@ export function handleNoteKeyDown(
   textEl: HTMLElement,
   _noteEl: HTMLElement,
 ): void {
-  if (e.key === 'Escape') {
+  if (e.key === "Escape") {
     e.preventDefault();
     textEl.focus();
-  } else if (e.key === 'Enter' && e.shiftKey && !e.isComposing) {
+  } else if (e.key === "Enter" && e.shiftKey && !e.isComposing) {
     e.preventDefault();
     textEl.focus();
   }

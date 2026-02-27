@@ -1,6 +1,6 @@
-import { store } from './store';
-import type { BloomlineNode } from './types';
-import { highlightText, escapeHtml, applySearch } from './search';
+import { store } from "./store";
+import type { BloomlineNode } from "./types";
+import { highlightText, escapeHtml, applySearch } from "./search";
 
 interface MatchResult {
   node: BloomlineNode;
@@ -28,14 +28,14 @@ export function isFlatSearchOpen(): boolean {
 }
 
 function truncateSegment(s: string, maxLen = 12): string {
-  if (!s) return '(無題)';
-  return s.length > maxLen ? s.slice(0, maxLen) + '…' : s;
+  if (!s) return "(無題)";
+  return s.length > maxLen ? s.slice(0, maxLen) + "…" : s;
 }
 
 function buildBreadcrumbHtml(ancestors: BloomlineNode[]): string {
-  const segments = ['Home', ...ancestors.map(a => escapeHtml(truncateSegment(a.text)))];
+  const segments = ["Home", ...ancestors.map((a) => escapeHtml(truncateSegment(a.text)))];
   return segments
-    .map((seg, i) => `<span class="fsp-crumb${i === 0 ? ' fsp-crumb-home' : ''}">${seg}</span>`)
+    .map((seg, i) => `<span class="fsp-crumb${i === 0 ? " fsp-crumb-home" : ""}">${seg}</span>`)
     .join('<span class="fsp-sep"> › </span>');
 }
 
@@ -48,10 +48,10 @@ function collectMatches(query: string): MatchResult[] {
     if (node.text.toLowerCase().includes(q) || (node.note && node.note.toLowerCase().includes(q))) {
       results.push({ node, ancestors: [...ancestors] });
     }
-    node.children.forEach(child => traverse(child, [...ancestors, node]));
+    node.children.forEach((child) => traverse(child, [...ancestors, node]));
   }
 
-  root.children.forEach(child => traverse(child, []));
+  root.children.forEach((child) => traverse(child, []));
   return results;
 }
 
@@ -61,8 +61,8 @@ function groupResults(matches: MatchResult[]): Group[] {
 
   for (const m of matches) {
     const parent = m.ancestors.length > 0 ? m.ancestors[m.ancestors.length - 1] : null;
-    const key = parent?.id ?? '__root__';
-    const ancestorIds = m.ancestors.map(a => a.id);
+    const key = parent?.id ?? "__root__";
+    const ancestorIds = m.ancestors.map((a) => a.id);
 
     if (!groupMap.has(key)) {
       groupMap.set(key, {
@@ -75,14 +75,14 @@ function groupResults(matches: MatchResult[]): Group[] {
     groupMap.get(key)!.matches.push(m.node);
   }
 
-  return groupOrder.map(id => groupMap.get(id)!);
+  return groupOrder.map((id) => groupMap.get(id)!);
 }
 
 function updateSelection(): void {
   if (!panelEl) return;
-  panelEl.querySelectorAll('.fsp-item').forEach((el, i) => {
-    el.classList.toggle('fsp-item-selected', i === selectedIndex);
-    if (i === selectedIndex) el.scrollIntoView({ block: 'nearest' });
+  panelEl.querySelectorAll(".fsp-item").forEach((el, i) => {
+    el.classList.toggle("fsp-item-selected", i === selectedIndex);
+    if (i === selectedIndex) el.scrollIntoView({ block: "nearest" });
   });
 }
 
@@ -115,28 +115,28 @@ export function updateFlatSearch(query: string): void {
   }
 
   const groups = groupResults(matches);
-  panelEl.innerHTML = '';
+  panelEl.innerHTML = "";
 
   for (const group of groups) {
-    const groupEl = document.createElement('div');
-    groupEl.className = 'fsp-group';
+    const groupEl = document.createElement("div");
+    groupEl.className = "fsp-group";
 
-    const header = document.createElement('div');
-    header.className = 'fsp-group-header';
+    const header = document.createElement("div");
+    header.className = "fsp-group-header";
     header.innerHTML = group.headerHtml;
     groupEl.appendChild(header);
 
     for (const node of group.matches) {
-      const itemEl = document.createElement('div');
-      itemEl.className = 'fsp-item';
-      itemEl.innerHTML = highlightText(node.text || '(無題)', q);
+      const itemEl = document.createElement("div");
+      itemEl.className = "fsp-item";
+      itemEl.innerHTML = highlightText(node.text || "(無題)", q);
 
       const itemIdx = flatItems.length;
-      itemEl.addEventListener('mousemove', () => {
+      itemEl.addEventListener("mousemove", () => {
         selectedIndex = itemIdx;
         updateSelection();
       });
-      itemEl.addEventListener('mousedown', (e) => {
+      itemEl.addEventListener("mousedown", (e) => {
         e.preventDefault();
         selectItem(itemIdx);
       });
@@ -151,24 +151,24 @@ export function updateFlatSearch(query: string): void {
 
 export function openFlatSearch(query: string): void {
   if (!panelEl) {
-    panelEl = document.createElement('div');
-    panelEl.id = 'flat-search-panel';
+    panelEl = document.createElement("div");
+    panelEl.id = "flat-search-panel";
     document.body.appendChild(panelEl);
 
-    const searchBox = document.getElementById('search-box')!;
+    const searchBox = document.getElementById("search-box")!;
     const rect = searchBox.getBoundingClientRect();
     panelEl.style.top = `${rect.bottom + 4}px`;
     panelEl.style.left = `${rect.left}px`;
     panelEl.style.minWidth = `${Math.max(rect.width, 320)}px`;
 
     _outsideClickHandler = (e: MouseEvent) => {
-      const sb = document.getElementById('search-box');
+      const sb = document.getElementById("search-box");
       if (panelEl && !panelEl.contains(e.target as Node) && e.target !== sb) {
         closeFlatSearch();
         clearSearchBox();
       }
     };
-    document.addEventListener('mousedown', _outsideClickHandler);
+    document.addEventListener("mousedown", _outsideClickHandler);
   }
   updateFlatSearch(query);
 }
@@ -176,24 +176,24 @@ export function openFlatSearch(query: string): void {
 export function handleFlatSearchKeydown(e: KeyboardEvent): boolean {
   if (!panelEl) return false;
 
-  if (e.key === 'ArrowDown') {
+  if (e.key === "ArrowDown") {
     e.preventDefault();
     selectedIndex = Math.min(selectedIndex + 1, flatItems.length - 1);
     updateSelection();
     return true;
   }
-  if (e.key === 'ArrowUp') {
+  if (e.key === "ArrowUp") {
     e.preventDefault();
     selectedIndex = Math.max(selectedIndex - 1, 0);
     updateSelection();
     return true;
   }
-  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
     e.preventDefault();
     if (selectedIndex >= 0) selectItem(selectedIndex);
     return true;
   }
-  if (e.key === 'Escape') {
+  if (e.key === "Escape") {
     e.preventDefault();
     closeFlatSearch();
     clearSearchBox();
@@ -204,7 +204,7 @@ export function handleFlatSearchKeydown(e: KeyboardEvent): boolean {
 
 export function closeFlatSearch(): void {
   if (_outsideClickHandler) {
-    document.removeEventListener('mousedown', _outsideClickHandler);
+    document.removeEventListener("mousedown", _outsideClickHandler);
     _outsideClickHandler = null;
   }
   if (panelEl) {
@@ -216,10 +216,10 @@ export function closeFlatSearch(): void {
 }
 
 function clearSearchBox(): void {
-  const searchBox = document.getElementById('search-box') as HTMLInputElement;
+  const searchBox = document.getElementById("search-box") as HTMLInputElement;
   if (searchBox) {
-    searchBox.value = '';
-    store.searchQuery = '';
+    searchBox.value = "";
+    store.searchQuery = "";
     applySearch();
     searchBox.blur();
   }

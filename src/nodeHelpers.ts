@@ -1,18 +1,25 @@
-import { store } from './store';
-import { uuid } from './model';
-import type { BloomlineNode, DropPosition } from './types';
+import { store } from "./store";
+import { uuid } from "./model";
+import type { BloomlineNode, DropPosition } from "./types";
 
 export function getCurrentRoot(): BloomlineNode {
   let node = store.state.root;
   for (const id of store.state.currentPath) {
-    const child = node.children.find(c => c.id === id);
-    if (!child) { store.state.currentPath = []; return store.state.root; }
+    const child = node.children.find((c) => c.id === id);
+    if (!child) {
+      store.state.currentPath = [];
+      return store.state.root;
+    }
     node = child;
   }
   return node;
 }
 
-export function isDescendantOrSelf(srcId: string, targetId: string, root = store.state.root): boolean {
+export function isDescendantOrSelf(
+  srcId: string,
+  targetId: string,
+  root = store.state.root,
+): boolean {
   const res = findNode(srcId, root);
   if (!res) return false;
   function check(n: BloomlineNode): boolean {
@@ -23,7 +30,12 @@ export function isDescendantOrSelf(srcId: string, targetId: string, root = store
 }
 
 // moveNode does NOT call render(); the caller must do so
-export function moveNode(srcId: string, targetId: string, position: DropPosition, root = store.state.root): void {
+export function moveNode(
+  srcId: string,
+  targetId: string,
+  position: DropPosition,
+  root = store.state.root,
+): void {
   const srcRes = findNode(srcId, root);
   if (!srcRes) return;
   const srcNode = srcRes.node;
@@ -33,10 +45,10 @@ export function moveNode(srcId: string, targetId: string, position: DropPosition
   const tgtRes = findNode(targetId, root);
   if (!tgtRes) return;
 
-  if (position === 'child') {
+  if (position === "child") {
     if (tgtRes.node.collapsed) tgtRes.node.collapsed = false;
     tgtRes.node.children.unshift(srcNode);
-  } else if (position === 'before') {
+  } else if (position === "before") {
     tgtRes.parent!.children.splice(tgtRes.index, 0, srcNode);
   } else {
     tgtRes.parent!.children.splice(tgtRes.index + 1, 0, srcNode);
@@ -46,11 +58,16 @@ export function moveNode(srcId: string, targetId: string, position: DropPosition
 }
 
 export function clearDropIndicators(): void {
-  document.querySelectorAll('.node-row.drop-above, .node-row.drop-below, .node-row.drop-child')
-    .forEach(el => el.classList.remove('drop-above', 'drop-below', 'drop-child'));
+  document
+    .querySelectorAll(".node-row.drop-above, .node-row.drop-below, .node-row.drop-child")
+    .forEach((el) => el.classList.remove("drop-above", "drop-below", "drop-child"));
 }
 
-export function getPathToNode(targetId: string, current = store.state.root, path: string[] = []): string[] | null {
+export function getPathToNode(
+  targetId: string,
+  current = store.state.root,
+  path: string[] = [],
+): string[] | null {
   for (const child of current.children) {
     if (child.id === targetId) return [...path, child.id];
     const result = getPathToNode(targetId, child, [...path, child.id]);
@@ -63,7 +80,7 @@ export function findNode(
   id: string,
   node: BloomlineNode = store.state.root,
   parent: BloomlineNode | null = null,
-  index = 0
+  index = 0,
 ): { node: BloomlineNode; parent: BloomlineNode | null; index: number } | null {
   if (node.id === id) return { node, parent, index };
   for (let i = 0; i < node.children.length; i++) {
