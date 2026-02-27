@@ -50,13 +50,13 @@ export function loadState(): AppState {
       const s = JSON.parse(raw);
       if (s && s.root) return migrateState(s);
     }
-  } catch (e) {}
+  } catch {}
   return defaultState();
 }
 
 export function saveState(): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(store.state));
-  } catch (e) {}
+  } catch {}
   _writeToFile?.();
 }

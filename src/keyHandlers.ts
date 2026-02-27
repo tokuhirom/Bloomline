@@ -2,7 +2,7 @@ import { store } from './store';
 import { createNode, uuid, saveState } from './model';
 import { findNode, flatVisibleNodes, getPathToNode } from './nodeHelpers';
 import { getCursorPos, setCursorPos } from './cursor';
-import { getSelectionRange, clearSelection, updateSelectionDisplay } from './selection';
+import { clearSelection, updateSelectionDisplay } from './selection';
 import { recordHistory } from './history';
 import { applySearch } from './search';
 import { showToast } from './toast';

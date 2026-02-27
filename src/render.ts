@@ -1,12 +1,12 @@
 import { store } from './store';
-import { getCurrentRoot, getPathToNode, findNode, flatVisibleNodes, isDescendantOrSelf, moveNode, clearDropIndicators } from './nodeHelpers';
+import { getCurrentRoot, getPathToNode, isDescendantOrSelf, moveNode, clearDropIndicators } from './nodeHelpers';
 import { saveState, createNode } from './model';
 import { renderSidebar } from './sidebar';
 import { applySearch } from './search';
 import { HAS_INLINE_RE, renderInlineContent, showRawText } from './inline';
 import { refreshImagePreview } from './imagePreview';
 import { setCursorPos } from './cursor';
-import { updateSelectionDisplay, clearSelection, getSelectionRange } from './selection';
+import { updateSelectionDisplay, clearSelection } from './selection';
 import { handleKeyDown, handleNoteKeyDown, handlePaste } from './editor';
 import { removeNode } from './keyHandlers';
 import { recordHistory, scheduleTextHistory } from './history';
@@ -282,7 +282,7 @@ export function render(): void {
   saveState();
 }
 
-export function renderBreadcrumb(currentRoot: BloomlineNode): void {
+export function renderBreadcrumb(_currentRoot: BloomlineNode): void {
   const bc = document.getElementById('breadcrumb')!;
   bc.innerHTML = '';
 
