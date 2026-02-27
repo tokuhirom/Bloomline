@@ -216,10 +216,6 @@ document.addEventListener('keydown', (e) => {
     toggleHideChecked();
     return;
   }
-  if (e.key === 'Escape' && store.state.currentPath.length > 0) {
-    store.state.currentPath.pop();
-    render();
-  }
 });
 
 // ブラウザの戻る / 進むボタン
