@@ -1,6 +1,6 @@
 import { store } from "./store";
 import { getCurrentRoot, findNode, flatVisibleNodes } from "./nodeHelpers";
-import { isAtStart } from "./cursor";
+import { isAtStart, isOnFirstLine, isOnLastLine, getCursorClientX } from "./cursor";
 import { getSelectionRange, clearSelection } from "./selection";
 import { recordHistory } from "./history";
 import { showToast } from "./toast";
@@ -155,6 +155,25 @@ export function handleKeyDown(
     return;
   }
 
+  // focusPrev / focusNext: 折り返し行の途中ではブラウザに任せ、最初/最後の行のみノード間移動
+  if (action === "focusPrev") {
+    if (isOnFirstLine(textEl)) {
+      e.preventDefault();
+      clearSelection();
+      moveFocusPrev(node, currentRoot, getCursorClientX());
+    }
+    return;
+  }
+
+  if (action === "focusNext") {
+    if (isOnLastLine(textEl)) {
+      e.preventDefault();
+      clearSelection();
+      moveFocusNext(node, currentRoot, getCursorClientX());
+    }
+    return;
+  }
+
   // copy/cut: 複数選択時のみ動作（単一選択はブラウザのデフォルト動作に任せる）
   if (action === "copy") {
     const sel = getSelectionRange();
@@ -238,14 +257,6 @@ export function handleKeyDown(
       break;
     case "moveNodeDown":
       moveNodeDown(node, currentRoot, render);
-      break;
-    case "focusPrev":
-      clearSelection();
-      moveFocusPrev(node, currentRoot);
-      break;
-    case "focusNext":
-      clearSelection();
-      moveFocusNext(node, currentRoot);
       break;
     case "zoomIn":
       zoomIn(node, render);

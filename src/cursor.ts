@@ -46,3 +46,87 @@ export function isAtStart(el: HTMLElement): boolean {
 export function isAtEnd(el: HTMLElement): boolean {
   return getCursorPos(el) === el.textContent!.length;
 }
+
+// ===== 複数行（折り返し）対応 =====
+
+/**
+ * カーソルの top と要素の最初/最後の行の top を比較する純粋関数。
+ * isOnFirstLine / isOnLastLine の判定ロジックを分離してテスト可能にしたもの。
+ */
+export function isTopLine(cursorTop: number, firstLineTop: number, threshold = 5): boolean {
+  return Math.abs(cursorTop - firstLineTop) < threshold;
+}
+
+export function isBottomLine(cursorTop: number, lastLineTop: number, threshold = 5): boolean {
+  return Math.abs(cursorTop - lastLineTop) < threshold;
+}
+
+/** カーソルが要素の最初の視覚行にあるか判定する */
+export function isOnFirstLine(el: HTMLElement): boolean {
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return true;
+  const cursorRange = sel.getRangeAt(0).cloneRange();
+  cursorRange.collapse(true);
+  const startRange = document.createRange();
+  startRange.selectNodeContents(el);
+  startRange.collapse(true);
+  const cursorRects = cursorRange.getClientRects();
+  const startRects = startRange.getClientRects();
+  if (!cursorRects.length || !startRects.length) return true;
+  return isTopLine(cursorRects[0].top, startRects[0].top);
+}
+
+/** カーソルが要素の最後の視覚行にあるか判定する */
+export function isOnLastLine(el: HTMLElement): boolean {
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return true;
+  const cursorRange = sel.getRangeAt(0).cloneRange();
+  cursorRange.collapse(true);
+  const endRange = document.createRange();
+  endRange.selectNodeContents(el);
+  endRange.collapse(false);
+  const cursorRects = cursorRange.getClientRects();
+  const endRects = endRange.getClientRects();
+  if (!cursorRects.length || !endRects.length) return true;
+  return isBottomLine(cursorRects[0].top, endRects[0].top);
+}
+
+/** カーソルのクライアント X 座標を返す */
+export function getCursorClientX(): number {
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return 0;
+  const range = sel.getRangeAt(0).cloneRange();
+  range.collapse(true);
+  const rects = range.getClientRects();
+  return rects.length ? rects[0].left : 0;
+}
+
+/**
+ * X 座標に最も近い位置にカーソルを置く。
+ * atTop=true: 要素の上端付近、atTop=false: 下端付近。
+ */
+export function setCursorByClientX(el: HTMLElement, x: number, atTop: boolean): void {
+  if (el.contentEditable === "false") el.contentEditable = "true";
+  el.focus();
+  const elRect = el.getBoundingClientRect();
+  const y = atTop ? elRect.top + 2 : Math.max(elRect.top + 2, elRect.bottom - 2);
+  let range: Range | null = null;
+  if (document.caretRangeFromPoint) {
+    range = document.caretRangeFromPoint(x, y);
+  } else {
+    type DocWithPos = { caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null };
+    const pos = (document as unknown as DocWithPos).caretPositionFromPoint?.(x, y);
+    if (pos) {
+      range = document.createRange();
+      range.setStart(pos.offsetNode, pos.offset);
+      range.collapse(true);
+    }
+  }
+  if (range) {
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+  } else {
+    setCursorPos(el, atTop ? 0 : el.textContent!.length);
+  }
+}

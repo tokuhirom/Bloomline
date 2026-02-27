@@ -1,7 +1,7 @@
 import { store } from "./store";
 import { createNode, uuid, saveState } from "./model";
 import { findNode, flatVisibleNodes, getPathToNode } from "./nodeHelpers";
-import { getCursorPos, setCursorPos } from "./cursor";
+import { getCursorPos, setCursorPos, setCursorByClientX } from "./cursor";
 import { clearSelection, updateSelectionDisplay } from "./selection";
 import { recordHistory } from "./history";
 import { applySearch } from "./search";
@@ -358,29 +358,36 @@ export function zoomOut(render: () => void): void {
 
 // ===== Focus movement =====
 
-function focusNodeText(el: HTMLElement, pos: "start" | "end"): void {
-  if (el.contentEditable === "false") el.contentEditable = "true";
-  el.focus();
-  const len = el.textContent!.length;
-  setCursorPos(el, pos === "end" ? len : 0);
-}
-
-export function moveFocusPrev(node: BloomlineNode, currentRoot: BloomlineNode): void {
+export function moveFocusPrev(node: BloomlineNode, currentRoot: BloomlineNode, x?: number): void {
   const flat = flatVisibleNodes(currentRoot);
   const idx = flat.findIndex((n) => n.id === node.id);
   if (idx <= 0) return;
   const prevNode = flat[idx - 1];
   const el = document.querySelector(`[data-id="${prevNode.id}"] .node-text`) as HTMLElement | null;
-  if (el) focusNodeText(el, "end");
+  if (!el) return;
+  if (x !== undefined) {
+    setCursorByClientX(el, x, false);
+  } else {
+    if (el.contentEditable === "false") el.contentEditable = "true";
+    el.focus();
+    setCursorPos(el, el.textContent!.length);
+  }
 }
 
-export function moveFocusNext(node: BloomlineNode, currentRoot: BloomlineNode): void {
+export function moveFocusNext(node: BloomlineNode, currentRoot: BloomlineNode, x?: number): void {
   const flat = flatVisibleNodes(currentRoot);
   const idx = flat.findIndex((n) => n.id === node.id);
   if (idx < 0 || idx >= flat.length - 1) return;
   const nextNode = flat[idx + 1];
   const el = document.querySelector(`[data-id="${nextNode.id}"] .node-text`) as HTMLElement | null;
-  if (el) focusNodeText(el, "start");
+  if (!el) return;
+  if (x !== undefined) {
+    setCursorByClientX(el, x, true);
+  } else {
+    if (el.contentEditable === "false") el.contentEditable = "true";
+    el.focus();
+    setCursorPos(el, 0);
+  }
 }
 
 // ===== Clipboard =====
