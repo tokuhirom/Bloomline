@@ -114,7 +114,12 @@ export function setCursorByClientX(el: HTMLElement, x: number, atTop: boolean): 
   if (document.caretRangeFromPoint) {
     range = document.caretRangeFromPoint(x, y);
   } else {
-    type DocWithPos = { caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null };
+    type DocWithPos = {
+      caretPositionFromPoint?: (
+        x: number,
+        y: number,
+      ) => { offsetNode: Node; offset: number } | null;
+    };
     const pos = (document as unknown as DocWithPos).caretPositionFromPoint?.(x, y);
     if (pos) {
       range = document.createRange();
@@ -122,7 +127,8 @@ export function setCursorByClientX(el: HTMLElement, x: number, atTop: boolean): 
       range.collapse(true);
     }
   }
-  if (range) {
+  // caretRangeFromPoint が el の外の要素を返すことがあるので el 内であることを確認する
+  if (range && el.contains(range.startContainer)) {
     const sel = window.getSelection()!;
     sel.removeAllRanges();
     sel.addRange(range);
