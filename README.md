@@ -7,6 +7,7 @@
 - **シングルファイル配布** — Vite + vite-plugin-singlefile でビルドした `dist/index.html` ひとつで動作
 - **データの永続化** — `localStorage` に自動保存。Chrome / Edge では File System Access API でファイルへの自動保存も可能
 - **ゼロ依存** — ランタイム依存なし、純粋な TypeScript + DOM
+- **PWA対応** — インストール可能。Service Worker によりオフラインでも起動
 
 ## スクリーンショット
 
@@ -169,10 +170,17 @@ npm run screenshot:readme
 
 `npm run screenshot:readme` は `scripts/demo-state.json` をアプリに注入して `docs/images/readme-demo.png` を更新します。README の画像も自動でこのファイルを参照します。
 
+## PWA
+
+- `npm run build` 後の `dist/` を HTTPS で配信すると、インストール可能な PWA として動作します。
+- Chrome / Edge ではアドレスバーのインストール導線からアプリ化できます。
+- オフライン時は Service Worker キャッシュから起動できます。
+
 ## 技術スタック
 
 - **TypeScript** + **Vite** — ビルドツール
 - **vite-plugin-singlefile** — JS / CSS をインラインにして単一 HTML へ
+- **vite-plugin-pwa** — Manifest / Service Worker 生成
 - **vitest** — ユニットテスト（`keyHandlers`, `nodeHelpers`, `model`）
 - ランタイムライブラリなし
 

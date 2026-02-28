@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="Bloomline">
+  <rect width="192" height="192" rx="38" fill="#f5f9ff"/>
+  <circle cx="42" cy="45" r="13" fill="#4a9eff"/>
+  <line x1="65" y1="45" x2="154" y2="45" stroke="#4a9eff" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="55" cy="97" r="11" fill="#8e99a8"/>
+  <line x1="76" y1="97" x2="154" y2="97" stroke="#8e99a8" stroke-width="12" stroke-linecap="round"/>
+  <circle cx="55" cy="145" r="11" fill="#8e99a8"/>
+  <line x1="76" y1="145" x2="154" y2="145" stroke="#8e99a8" stroke-width="12" stroke-linecap="round"/>
+</svg>
