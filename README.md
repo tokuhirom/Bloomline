@@ -7,6 +7,7 @@
 - **シングルファイル配布** — Vite + vite-plugin-singlefile でビルドした `dist/index.html` ひとつで動作
 - **データの永続化** — `localStorage` に自動保存。Chrome / Edge では File System Access API でファイルへの自動保存も可能
 - **ゼロ依存** — ランタイム依存なし、純粋な TypeScript + DOM
+- **アプリとしてインストール可能** — GitHub Pages 版をそのままホーム画面 / デスクトップに追加して使えます
 - **PWA対応** — インストール可能。Service Worker によりオフラインでも起動
 
 ## スクリーンショット
@@ -169,6 +170,13 @@ npm run screenshot:readme
 ```
 
 `npm run screenshot:readme` は `scripts/demo-state.json` をアプリに注入して `docs/images/readme-demo.png` を更新します。README の画像も自動でこのファイルを参照します。
+
+## インストールして使う（PWA）
+
+- 公開URL: https://tokuhirom.github.io/Bloomline/
+- Chrome / Edge ではアドレスバーの「インストール」からアプリとして追加できます。
+- スマートフォンではブラウザメニューの「ホーム画面に追加」で起動しやすくなります。
+- 一度開いた後は、オフラインでも起動できます（端末に保存されたデータを利用）。
 
 ## PWA
 
