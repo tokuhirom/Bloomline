@@ -8,6 +8,10 @@
 - **データの永続化** — `localStorage` に自動保存。Chrome / Edge では File System Access API でファイルへの自動保存も可能
 - **ゼロ依存** — ランタイム依存なし、純粋な TypeScript + DOM
 
+## スクリーンショット
+
+![Bloomline Demo](docs/images/readme-demo.png)
+
 ## 機能一覧
 
 ### 基本操作
@@ -157,7 +161,13 @@ npm run build
 
 # テスト
 npm test
+
+# README 用スクリーンショットを生成
+npm run playwright:install
+npm run screenshot:readme
 ```
+
+`npm run screenshot:readme` は `scripts/demo-state.json` をアプリに注入して `docs/images/readme-demo.png` を更新します。README の画像も自動でこのファイルを参照します。
 
 ## 技術スタック
 

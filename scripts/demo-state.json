@@ -1,0 +1,91 @@
+{
+  "root": {
+    "id": "root",
+    "text": "",
+    "note": "",
+    "collapsed": false,
+    "children": [
+      {
+        "id": "launch",
+        "text": "Bloomline v1 Launch",
+        "note": "README で魅力が伝わる体験を先に作る",
+        "collapsed": false,
+        "children": [
+          {
+            "id": "readme",
+            "text": "README を仕上げる",
+            "note": "最初の 30 秒で価値が伝わる構成にする",
+            "collapsed": false,
+            "checked": false,
+            "children": []
+          },
+          {
+            "id": "screenshot",
+            "text": "Playwright でスクショを自動生成",
+            "note": "`npm run screenshot:readme` で更新できるようにする",
+            "collapsed": false,
+            "checked": true,
+            "children": []
+          },
+          {
+            "id": "onboarding",
+            "text": "初回オンボーディング導線",
+            "note": "ショートカットとズーム操作に 10 秒で触れられる導線",
+            "collapsed": false,
+            "checked": false,
+            "children": []
+          }
+        ]
+      },
+      {
+        "id": "interviews",
+        "text": "Customer Interviews",
+        "note": "",
+        "collapsed": false,
+        "children": [
+          {
+            "id": "pm",
+            "text": "PM: 思考ログをすぐ書き留めたい",
+            "note": "サイドバーのお気に入りが刺さった",
+            "collapsed": false,
+            "children": []
+          },
+          {
+            "id": "engineer",
+            "text": "Engineer: キーボード中心で編集したい",
+            "note": "Tab / Shift+Tab と複数選択が高評価",
+            "collapsed": false,
+            "children": []
+          }
+        ]
+      },
+      {
+        "id": "ideas",
+        "text": "Ideas Backlog",
+        "note": "",
+        "collapsed": true,
+        "children": [
+          {
+            "id": "idea-calendar",
+            "text": "日次ノートをカレンダー階層に自動集約",
+            "note": "",
+            "collapsed": false,
+            "children": []
+          },
+          {
+            "id": "idea-opml",
+            "text": "OPML round-trip の互換性チェック",
+            "note": "",
+            "collapsed": false,
+            "children": []
+          }
+        ]
+      }
+    ]
+  },
+  "currentPath": [],
+  "title": "Bloomline Demo Workspace",
+  "pinnedItems": ["launch", "readme", "interviews"],
+  "version": 1,
+  "hideChecked": false
+}
