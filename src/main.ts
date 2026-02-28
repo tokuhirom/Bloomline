@@ -1,4 +1,5 @@
 import "./style.css";
+import "./pwa";
 import { store } from "./store";
 import { loadState, saveState, createNode, initModel } from "./model";
 import { render, renderBreadcrumb, initNodeMenu, suppressNextHistoryPush } from "./render";
