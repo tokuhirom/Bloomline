@@ -110,9 +110,11 @@ export function setCursorByClientX(el: HTMLElement, x: number, atTop: boolean): 
   el.focus();
   const elRect = el.getBoundingClientRect();
   const y = atTop ? elRect.top + 2 : Math.max(elRect.top + 2, elRect.bottom - 2);
+  // x を要素の水平範囲にクランプして要素外の位置が返るのを防ぐ
+  const clampedX = Math.max(elRect.left + 1, Math.min(elRect.right - 1, x));
   let range: Range | null = null;
   if (document.caretRangeFromPoint) {
-    range = document.caretRangeFromPoint(x, y);
+    range = document.caretRangeFromPoint(clampedX, y);
   } else {
     type DocWithPos = {
       caretPositionFromPoint?: (
@@ -120,7 +122,7 @@ export function setCursorByClientX(el: HTMLElement, x: number, atTop: boolean): 
         y: number,
       ) => { offsetNode: Node; offset: number } | null;
     };
-    const pos = (document as unknown as DocWithPos).caretPositionFromPoint?.(x, y);
+    const pos = (document as unknown as DocWithPos).caretPositionFromPoint?.(clampedX, y);
     if (pos) {
       range = document.createRange();
       range.setStart(pos.offsetNode, pos.offset);
@@ -133,6 +135,8 @@ export function setCursorByClientX(el: HTMLElement, x: number, atTop: boolean): 
     sel.removeAllRanges();
     sel.addRange(range);
   } else {
-    setCursorPos(el, atTop ? 0 : el.textContent!.length);
+    // x が要素の左寄りなら先頭、右寄りなら末尾にフォールバック
+    const fallbackPos = x < elRect.left + elRect.width / 2 ? 0 : el.textContent!.length;
+    setCursorPos(el, fallbackPos);
   }
 }

@@ -31,6 +31,7 @@ export function renderInlineContent(el: HTMLElement, text: string): void {
       a.href = mdMatch[2];
       a.target = "_blank";
       a.rel = "noopener noreferrer";
+      a.tabIndex = -1;
       a.addEventListener("click", (e) => e.stopPropagation());
       el.appendChild(a);
     } else if (urlMatch) {
@@ -40,6 +41,7 @@ export function renderInlineContent(el: HTMLElement, text: string): void {
       a.href = part;
       a.target = "_blank";
       a.rel = "noopener noreferrer";
+      a.tabIndex = -1;
       a.addEventListener("click", (e) => e.stopPropagation());
       el.appendChild(a);
     } else {
