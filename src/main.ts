@@ -24,6 +24,8 @@ import {
 import { initExportImport, exportText, exportJson, exportOpml, importJson } from "./exportImport";
 import { applySearch } from "./search";
 import { toggleHideChecked } from "./keyHandlers";
+
+const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
 import {
   initFlatSearch,
   openFlatSearch,
@@ -229,7 +231,7 @@ document.addEventListener("keydown", (e) => {
     redo();
     return;
   }
-  if ((e.ctrlKey || e.metaKey) && e.key === "f") {
+  if ((isMac ? e.metaKey : e.ctrlKey) && e.key === "f") {
     e.preventDefault();
     (document.getElementById("search-box") as HTMLInputElement).focus();
     return;
