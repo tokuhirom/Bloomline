@@ -129,6 +129,18 @@ describe("resolveAction", () => {
       expect(resolveAction(key({ key: "b", ctrlKey: true }), true)).toBe("emacsBackward");
     });
 
+    it("Mac: Ctrl+f → emacsForward（検索ショートカットと競合しない）", () => {
+      expect(resolveAction(key({ key: "f", ctrlKey: true }), true)).toBe("emacsForward");
+    });
+
+    it("Mac: Cmd+f → null（グローバルハンドラに任せる）", () => {
+      expect(resolveAction(key({ key: "f", metaKey: true }), true)).toBeNull();
+    });
+
+    it("非 Mac: Ctrl+f → null（グローバルハンドラに任せる）", () => {
+      expect(resolveAction(key({ key: "f", ctrlKey: true }), false)).toBeNull();
+    });
+
     it("Mac: Ctrl+k → emacsDeleteToEol", () => {
       expect(resolveAction(key({ key: "k", ctrlKey: true }), true)).toBe("emacsDeleteToEol");
     });
