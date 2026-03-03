@@ -46,7 +46,7 @@ export function initEditor(renderFn: () => void): void {
   _render = renderFn;
 }
 
-const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+export const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
 
 function handleBackspace(
   e: KeyboardEvent,

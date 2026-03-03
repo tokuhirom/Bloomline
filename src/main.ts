@@ -10,7 +10,7 @@ import {
   toggleHomeSection,
   addNewTopLevelNode,
 } from "./sidebar";
-import { initEditor } from "./editor";
+import { initEditor, isMac } from "./editor";
 import { initHistory, recordHistory, undo, redo } from "./history";
 import { scheduleTextHistory } from "./history";
 import {
@@ -24,8 +24,6 @@ import {
 import { initExportImport, exportText, exportJson, exportOpml, importJson } from "./exportImport";
 import { applySearch } from "./search";
 import { toggleHideChecked } from "./keyHandlers";
-
-const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
 import {
   initFlatSearch,
   openFlatSearch,
