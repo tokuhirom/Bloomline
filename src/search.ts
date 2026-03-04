@@ -14,10 +14,9 @@ export function isTagQuery(query: string): boolean {
  */
 export function matchesQuery(text: string, rawQuery: string): boolean {
   if (isTagQuery(rawQuery)) {
-    return new RegExp(
-      `(?<![a-zA-Z0-9_-])${escapeRegex(rawQuery)}(?![a-zA-Z0-9_-])`,
-      "i",
-    ).test(text);
+    return new RegExp(`(?<![a-zA-Z0-9_-])${escapeRegex(rawQuery)}(?![a-zA-Z0-9_-])`, "i").test(
+      text,
+    );
   }
   return text.toLowerCase().includes(rawQuery.toLowerCase());
 }
