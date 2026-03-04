@@ -60,6 +60,7 @@ export function openCalendar(): void {
   // 常に日ノードにズームイン。フォーカスは最初の子ノードへ
   recordHistory();
   const path = getPathToNode(dayNode.id);
+  document.dispatchEvent(new CustomEvent("bloomline:navigate"));
   if (path) store.state.currentPath = path;
   store.lastFocusId = dayNode.children[0].id;
   _render?.();

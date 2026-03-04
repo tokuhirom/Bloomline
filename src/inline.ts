@@ -1,9 +1,11 @@
+export const TAG_RE = /#[a-zA-Z0-9][a-zA-Z0-9_-]*/;
+
 export const HAS_INLINE_RE =
-  /\[[^\]]*\]\([^)]*\)|https?:\/\/|\*\*[^*]+\*\*|\*[^*\s][^*]*[^*\s]\*|\*[^*\s]\*|__[^_]+__/;
+  /\[[^\]]*\]\([^)]*\)|https?:\/\/|\*\*[^*]+\*\*|\*[^*\s][^*]*[^*\s]\*|\*[^*\s]\*|__[^_]+__|#[a-zA-Z0-9][a-zA-Z0-9_-]*/;
 
 export function renderInlineContent(el: HTMLElement, text: string): void {
   const parts = text.split(
-    /(\*\*[^*]+\*\*|\*[^*\s][^*]*[^*\s]\*|\*[^*\s]\*|__[^_]+__|\[[^\]]*\]\([^)]*\)|https?:\/\/\S+)/g,
+    /(\*\*[^*]+\*\*|\*[^*\s][^*]*[^*\s]\*|\*[^*\s]\*|__[^_]+__|\[[^\]]*\]\([^)]*\)|https?:\/\/\S+|#[a-zA-Z0-9][a-zA-Z0-9_-]*)/g,
   );
   el.innerHTML = "";
   parts.forEach((part) => {
@@ -44,6 +46,19 @@ export function renderInlineContent(el: HTMLElement, text: string): void {
       a.tabIndex = -1;
       a.addEventListener("click", (e) => e.stopPropagation());
       el.appendChild(a);
+    } else if (TAG_RE.test(part)) {
+      const span = document.createElement("span");
+      span.className = "tag";
+      span.textContent = part;
+      span.tabIndex = -1;
+      // mousedown の default を止めて textEl へのフォーカス移動（→ showRawText）を防ぐ
+      span.addEventListener("mousedown", (e) => e.preventDefault());
+      span.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        document.dispatchEvent(new CustomEvent("bloomline:tag-click", { detail: part }));
+      });
+      el.appendChild(span);
     } else {
       el.appendChild(document.createTextNode(part));
     }

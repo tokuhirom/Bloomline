@@ -1,6 +1,6 @@
 import { store } from "./store";
 import type { BloomlineNode } from "./types";
-import { highlightText, escapeHtml, applySearch } from "./search";
+import { highlightText, escapeHtml, applySearch, matchesQuery } from "./search";
 
 interface MatchResult {
   node: BloomlineNode;
@@ -40,12 +40,11 @@ function buildBreadcrumbHtml(ancestors: BloomlineNode[]): string {
 }
 
 function collectMatches(query: string): MatchResult[] {
-  const q = query.toLowerCase();
   const root = store.state.root;
   const results: MatchResult[] = [];
 
   function traverse(node: BloomlineNode, ancestors: BloomlineNode[]): void {
-    if (node.text.toLowerCase().includes(q) || (node.note && node.note.toLowerCase().includes(q))) {
+    if (matchesQuery(node.text, query) || (node.note && matchesQuery(node.note, query))) {
       results.push({ node, ancestors: [...ancestors] });
     }
     node.children.forEach((child) => traverse(child, [...ancestors, node]));

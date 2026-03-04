@@ -83,6 +83,7 @@ function createHomeNodeEl(node: BloomlineNode, depth: number): HTMLElement {
   row.addEventListener("click", () => {
     const path = getPathToNode(node.id);
     if (path) {
+      document.dispatchEvent(new CustomEvent("bloomline:navigate"));
       store.state.currentPath = path;
       _render?.();
     }
@@ -151,6 +152,7 @@ export function addNewTopLevelNode(): void {
   const node = createNode("");
   store.state.root.children.push(node);
   store.lastFocusId = node.id;
+  document.dispatchEvent(new CustomEvent("bloomline:navigate"));
   store.state.currentPath = [];
   _render?.();
   saveState();
@@ -199,6 +201,7 @@ export function renderSidebar(): void {
       item.addEventListener("click", () => {
         const path = getPathToNode(nodeId);
         if (path) {
+          document.dispatchEvent(new CustomEvent("bloomline:navigate"));
           store.state.currentPath = path;
           _render?.();
         }

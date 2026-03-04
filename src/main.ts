@@ -105,6 +105,28 @@ document.getElementById("file-import")!.addEventListener("change", (e) => {
 });
 
 // 検索ヒント
+// タグクリック前の currentPath を保存（Escape で元に戻るため）
+let tagSearchOriginPath: string[] | null = null;
+
+document.addEventListener("bloomline:navigate", () => {
+  const searchBox = document.getElementById("search-box") as HTMLInputElement;
+  searchBox.value = "";
+  store.searchQuery = "";
+  tagSearchOriginPath = null;
+});
+
+document.addEventListener("bloomline:tag-click", (e) => {
+  const tag = (e as CustomEvent<string>).detail;
+  tagSearchOriginPath = [...store.state.currentPath];
+  store.state.currentPath = [];
+  const searchBox = document.getElementById("search-box") as HTMLInputElement;
+  searchBox.value = tag;
+  store.searchQuery = tag;
+  render();
+  searchBox.focus();
+  searchBox.setSelectionRange(tag.length, tag.length);
+});
+
 const searchTip = document.createElement("div");
 searchTip.id = "search-tip";
 searchTip.textContent = "Shift+Enter でフラット検索";
@@ -146,7 +168,13 @@ document.getElementById("search-box")!.addEventListener("keydown", (e) => {
     const sb = e.target as HTMLInputElement;
     sb.value = "";
     store.searchQuery = "";
-    applySearch();
+    if (tagSearchOriginPath !== null) {
+      store.state.currentPath = tagSearchOriginPath;
+      tagSearchOriginPath = null;
+      render();
+    } else {
+      applySearch();
+    }
     sb.blur();
   }
 });
